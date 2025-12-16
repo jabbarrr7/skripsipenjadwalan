@@ -209,7 +209,7 @@ def _times_overlap(s1, e1, s2, e2):
 
 try:
     client = MongoClient(
-        "mongodb+srv://salamull1005:jabbar1005@schedules.fb8isvj.mongodb.net/?appName=schedules",
+        "mongodb+srv://salamull1005:jabbar100503@schedules.fb8isvj.mongodb.net/?appName=schedules",
         # tls=True,
         # tlsAllowInvalidCertificates=True,
         serverSelectionTimeoutMS=10000,
@@ -8613,4 +8613,5 @@ def schedule_analytics():
 if __name__ == "__main__":
 
     app.run(debug=True)
+
 
