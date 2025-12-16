@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Request Reschedule - Sistem Penjadwalan</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .schedule-preview {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .class-item {
+            background: white;
+            padding: 10px;
+            margin: 8px 0;
+            border-left: 4px solid #2196F3;
+            border-radius: 4px;
+        }
+        .day-header {
+            font-weight: bold;
+            color: #333;
+            margin-top: 15px;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+        .warning-box {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        select, textarea, input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        .btn-submit {
+            background: #f44336;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .btn-submit:hover {
+            background: #d32f2f;
+        }
+        .btn-cancel {
+            background: #9e9e9e;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        .reschedule-entry {
+            background: white;
+            border: 2px solid #2196F3;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .entry-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .entry-number {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2196F3;
+        }
+        .time-range-input {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .time-range-input > div {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h1>🚨 Request Reschedule Darurat</h1>
+            <a href="{{ url_for('dosen') }}" class="btn">← Kembali ke Dashboard</a>
+        </div>
+
+        <div class="warning-box">
+            <strong>⚠️ Perhatian:</strong>
+            <ul style="margin: 10px 0 0 20px;">
+                <li>Gunakan fitur ini hanya untuk kondisi darurat (sakit, keperluan mendesak, dll)</li>
+                <li>Anda bisa mengajukan <strong>beberapa reschedule sekaligus</strong> dalam 1 form</li>
+                <li>Sistem akan mencoba memindahkan kelas Anda ke hari lain secara otomatis</li>
+                <li>Koordinator akan menerima notifikasi dan menyetujui permintaan Anda</li>
+            </ul>
+        </div>
+
+        <form method="POST" action="{{ url_for('dosen_request_reschedule') }}" id="rescheduleForm" onsubmit="submitRescheduleForm(event)">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Daftar Request Reschedule</h5>
+                </div>
+                <div class="card-body">
+                    <div id="rescheduleContainer">
+                        <!-- Default single entry -->
+                        <div class="reschedule-entry">
+                            <div class="entry-header">
+                                <span class="entry-number">Entry #1</span>
+                                <button type="button" class="btn btn-danger btn-sm remove-entry">🗑️ Hapus</button>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <label class="form-label">Hari</label>
+                                    <select name="unavailable_day[]" class="form-control day-selector" required>
+                                        <option value="">-- Pilih Hari --</option>
+                                        <option value="*" style="font-weight:bold; background:#ffebee;">🔴 Semua Hari (Senin-Jumat)</option>
+                                        {% for day in weekdays %}
+                                        <option value="{{ day }}">{{ day }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Tipe Waktu</label>
+                                    <select name="time_type[]" class="form-control time-type-selector" required>
+                                        <option value="all">Sepanjang Hari</option>
+                                        <option value="specific">Jam Tertentu</option>
+                                        <option value="range">Rentang Waktu</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 specific-time-input" style="display:none;">
+                                    <label class="form-label">Jam</label>
+                                    <input type="time" name="specific_time[]" class="form-control">
+                                </div>
+                                <div class="col-md-4 range-time-input" style="display:none;">
+                                    <label class="form-label">Dari - Sampai</label>
+                                    <div class="time-range-input">
+                                        <div>
+                                            <input type="time" name="start_time[]" class="form-control" placeholder="Dari">
+                                        </div>
+                                        <div>
+                                            <input type="time" name="end_time[]" class="form-control" placeholder="Sampai">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-md-12">
+                                    <label class="form-label">Alasan (opsional)</label>
+                                    <textarea name="reason[]" class="form-control" placeholder="Contoh: Sakit, keperluan keluarga, dll"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-secondary" id="addEntryBtn">➕ Tambah Request Reschedule</button>
+                    
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <strong>Contoh Penggunaan:</strong><br>
+                            1. <strong>Entry #1:</strong> Senin sepanjang hari (sakit)<br>
+                            2. <strong>Entry #2:</strong> Rabu jam 10:00 (keperluan mendesak)<br>
+                            3. <strong>Entry #3:</strong> Jumat jam 13:00-15:00 (acara keluarga)<br>
+                            → Ketiga request akan dikirim sekaligus dalam 1 form
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 30px;">
+                <button type="submit" class="btn-submit">🚨 Kirim Semua Permintaan</button>
+                <a href="{{ url_for('dosen') }}" class="btn-cancel">Batal</a>
+            </div>
+        </form>
+
+        <div class="card" style="margin-top: 30px;">
+            <h3>Jadwal Anda Saat Ini:</h3>
+            {% if schedule_by_day %}
+                {% for day in weekdays %}
+                    {% if day in schedule_by_day %}
+                        <div class="day-header">{{ day }}</div>
+                        {% for cls in schedule_by_day[day] %}
+                        <div class="class-item">
+                            <strong>{{ cls.course_name }}</strong>
+                            {% if cls.section_label %}<span>({{ cls.section_label }})</span>{% endif %}
+                            <br>
+                            <small>
+                                🕐 {{ cls.start }}-{{ cls.end }} | 
+                                🏠 {{ cls.room }} | 
+                                📚 {{ cls.sks }} SKS
+                            </small>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <p style="color: #999;">Belum ada jadwal</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        const scheduleByDay = {{ schedule_by_day|tojson|safe }};
+        let entryCount = 1;
+
+        const container = document.getElementById('rescheduleContainer');
+        
+        // Handle time type change
+        container.addEventListener('change', function(e) {
+            if (e.target.classList.contains('time-type-selector')) {
+                const entry = e.target.closest('.reschedule-entry');
+                const specificInput = entry.querySelector('.specific-time-input');
+                const rangeInput = entry.querySelector('.range-time-input');
+                
+                specificInput.style.display = 'none';
+                rangeInput.style.display = 'none';
+                
+                if (e.target.value === 'specific') {
+                    specificInput.style.display = 'block';
+                } else if (e.target.value === 'range') {
+                    rangeInput.style.display = 'block';
+                }
+            }
+        });
+        
+        // Handle add entry
+        document.getElementById('addEntryBtn').addEventListener('click', function() {
+            entryCount++;
+            const entryHtml = `
+                <div class="reschedule-entry">
+                    <div class="entry-header">
+                        <span class="entry-number">Entry #${entryCount}</span>
+                        <button type="button" class="btn btn-danger btn-sm remove-entry">🗑️ Hapus</button>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label class="form-label">Hari</label>
+                            <select name="unavailable_day[]" class="form-control day-selector" required>
+                                <option value="">-- Pilih Hari --</option>
+                                <option value="*" style="font-weight:bold; background:#ffebee;">🔴 Semua Hari (Senin-Jumat)</option>
+                                {% for day in weekdays %}
+                                <option value="{{ day }}">{{ day }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Tipe Waktu</label>
+                            <select name="time_type[]" class="form-control time-type-selector" required>
+                                <option value="all">Sepanjang Hari</option>
+                                <option value="specific">Jam Tertentu</option>
+                                <option value="range">Rentang Waktu</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 specific-time-input" style="display:none;">
+                            <label class="form-label">Jam</label>
+                            <input type="time" name="specific_time[]" class="form-control">
+                        </div>
+                        <div class="col-md-4 range-time-input" style="display:none;">
+                            <label class="form-label">Dari - Sampai</label>
+                            <div class="time-range-input">
+                                <div>
+                                    <input type="time" name="start_time[]" class="form-control" placeholder="Dari">
+                                </div>
+                                <div>
+                                    <input type="time" name="end_time[]" class="form-control" placeholder="Sampai">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <label class="form-label">Alasan (opsional)</label>
+                            <textarea name="reason[]" class="form-control" placeholder="Contoh: Sakit, keperluan keluarga, dll"></textarea>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', entryHtml);
+        });
+        
+        // Handle remove entry
+        container.addEventListener('click', function(e) {
+            if (e.target.classList.contains('remove-entry') || e.target.closest('.remove-entry')) {
+                const entry = e.target.closest('.reschedule-entry');
+                const totalEntries = container.querySelectorAll('.reschedule-entry').length;
+                
+                if (totalEntries > 1) {
+                    entry.remove();
+                    // Renumber entries
+                    const entries = container.querySelectorAll('.reschedule-entry');
+                    entries.forEach((e, idx) => {
+                        e.querySelector('.entry-number').textContent = `Entry #${idx + 1}`;
+                    });
+                    entryCount = entries.length;
+                } else {
+                    alert('Minimal harus ada 1 entry. Jika tidak ingin request reschedule, klik tombol Batal.');
+                }
+            }
+        });
+
+        function validateForm() {
+            const entries = container.querySelectorAll('.reschedule-entry');
+            let hasError = false;
+            
+            entries.forEach((entry, idx) => {
+                const day = entry.querySelector('.day-selector').value;
+                const timeType = entry.querySelector('.time-type-selector').value;
+                
+                if (!day) {
+                    alert(`Entry #${idx + 1}: Pilih hari terlebih dahulu`);
+                    hasError = true;
+                    return;
+                }
+                
+                if (timeType === 'specific') {
+                    const time = entry.querySelector('input[name="specific_time[]"]').value;
+                    if (!time) {
+                        alert(`Entry #${idx + 1}: Masukkan jam untuk tipe "Jam Tertentu"`);
+                        hasError = true;
+                        return;
+                    }
+                } else if (timeType === 'range') {
+                    const start = entry.querySelector('input[name="start_time[]"]').value;
+                    const end = entry.querySelector('input[name="end_time[]"]').value;
+                    if (!start || !end) {
+                        alert(`Entry #${idx + 1}: Masukkan rentang waktu lengkap`);
+                        hasError = true;
+                        return;
+                    }
+                }
+            });
+            
+            if (hasError) return false;
+            
+            return confirm(`Yakin ingin mengirim ${entries.length} permintaan reschedule?`);
+        }
+        
+        function submitRescheduleForm(event) {
+            if (!validateForm()) {
+                event.preventDefault();
+                return;
+            }
+            
+            Swal.fire({
+                title: '⏳ Mengirim Permintaan',
+                html: '<p style="font-size:14px;">Sedang mengirim permintaan reschedule Anda...</p>',
+                icon: 'info',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                didOpen: (modal) => {
+                    Swal.showLoading();
+                    setTimeout(() => {
+                        event.target.submit();
+                    }, 300);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

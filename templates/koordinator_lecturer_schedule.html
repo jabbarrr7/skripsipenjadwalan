@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <h2 class="page-title">👨‍🏫 {{ lecturer_name }}</h2>
+        <div class="text-muted text-sm">Jadwal mengajar lengkap</div>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-ghost" href="/koordinator">← Kembali ke Dashboard</a>
+    </div>
+</div>
+
+<!-- Lecturer Statistics -->
+<div class="analytics-grid">
+    <div class="stat">
+        <div class="label">Total SKS</div>
+        <div class="value">{{ total_sks }}</div>
+    </div>
+    
+    <div class="stat">
+        <div class="label">Jumlah Kelas</div>
+        <div class="value">{{ num_classes }}</div>
+    </div>
+    
+    <div class="stat">
+        <div class="label">Mata Kuliah</div>
+        <div class="value">{{ num_courses }}</div>
+    </div>
+    
+    <div class="stat">
+        <div class="label">Hari Mengajar</div>
+        <div class="value">{{ days_teaching|length }}</div>
+        <div style="margin-top:8px;">
+            {% for day in days_teaching %}
+                <span style="display:inline-block; background:#e0e7ff; color:#4338ca; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">{{ day }}</span>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Schedule by Day -->
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 style="margin:0;">📅 Jadwal Lengkap</h3>
+        <input type="text" id="searchSchedule" placeholder="🔍 Cari mata kuliah, ruangan..." style="width:300px; padding:10px 14px; border:1px solid #e6e9ef; border-radius:8px; font-size:14px;" onkeyup="searchScheduleTable()">
+    </div>
+    
+    {% if schedule_by_day %}
+        {% for day in days_order %}
+            {% if day in schedule_by_day %}
+                <div style="margin-top:24px;">
+                    <h4 style="margin-bottom:12px; padding-bottom:8px; border-bottom:2px solid #e6e9ef; color:#0f1724;">{{ day }}</h4>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Jam</th>
+                                    <th>Mata Kuliah</th>
+                                    <th>SKS</th>
+                                    <th>Ruangan</th>
+                                    <th>Kesesuaian</th>
+                                    <th>Score</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for slot in schedule_by_day[day] %}
+                                <tr>
+                                    <td style="font-weight:600;">{{ slot.start|replace(':', '.') }} – {{ slot.end|replace(':', '.') }}</td>
+                                    <td>{{ slot.course_name }}{% if slot.section_label %} ({{ slot.section_label }}){% endif %}</td>
+                                    <td class="text-center">{{ slot.sks }}</td>
+                                    <td>
+                                        {% if slot.room == 'ONLINE' %}
+                                            <span class="status-online">🌐 ONLINE</span>
+                                        {% else %}
+                                            {{ slot.room }}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% set quality = slot.match_quality|default('Acceptable') %}
+                                        {% if quality == 'Excellent' %}
+                                            <span class="badge badge-excellent">{{ quality }}</span>
+                                        {% elif quality == 'Good' %}
+                                            <span class="badge badge-good">{{ quality }}</span>
+                                        {% elif quality == 'Acceptable' %}
+                                            <span class="badge badge-acceptable">{{ quality }}</span>
+                                        {% else %}
+                                            <span class="badge badge-poor">{{ quality }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="score-badge">{{ slot.preference_score|default(50) }}%</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            {% endif %}
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <div class="empty-state-text">Belum Ada Jadwal</div>
+            <div class="empty-state-subtext">Dosen ini belum memiliki jadwal mengajar</div>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+function searchScheduleTable() {
+    const input = document.getElementById('searchSchedule');
+    const filter = input.value.toUpperCase();
+    const tables = document.querySelectorAll('.table-responsive table');
+    
+    tables.forEach(table => {
+        const tr = table.getElementsByTagName('tr');
+        for (let i = 1; i < tr.length; i++) {
+            const tds = tr[i].getElementsByTagName('td');
+            let found = false;
+            
+            for (let j = 0; j < tds.length; j++) {
+                const txtValue = tds[j].textContent || tds[j].innerText;
+                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                    found = true;
+                    break;
+                }
+            }
+            
+            tr[i].style.display = found ? '' : 'none';
+        }
+    });
+}
+</script>
+
+{% endblock %}

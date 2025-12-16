@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <h2 class="page-title">Pilih Mata Kuliah</h2>
+        <div style="color:var(--muted); font-size:13px">Pilih salah satu mata kuliah yang ingin Anda ambil</div>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-ghost" href="/dosen">Kembali</a>
+    </div>
+</div>
+
+    <div class="card">
+    <div class="table-responsive">
+        {% for sem, group in courses_by_semester.items() %}
+            <h4 style="margin:10px 0">Semester {{ sem }}</h4>
+            <table>
+                <thead>
+                    <tr><th>Nama Mata Kuliah</th><th>SKS</th><th>Semester</th><th>Timeslot</th><th>Status</th><th>Aksi</th></tr>
+                </thead>
+                <tbody>
+                {% for c in group %}
+                <tr>
+                    <td>{{ c.course_name }}</td>
+                    <td>{{ c.sks }}</td>
+                    <td>{{ c.semester }}</td>
+                    <td>
+                        {% if c.has_slot %}
+                            {{ c.slot.day }} {{ c.slot.start|replace(':', '.') }}–{{ c.slot.end|replace(':', '.') }} ({{ c.slot.room }})
+                        {% else %}
+                            <span style="color:var(--muted);">Belum ada</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if c.selected_by %}
+                            Dipilih oleh {{ c.selected_by|join(', ') }}
+                            {% if c.reserved_at %}
+                                <div style="font-size:12px;color:var(--muted);">(dibooking: {{ c.reserved_at }})</div>
+                            {% endif %}
+                            {% if username in c.selected_by %}
+                                {% if c.has_slot %}
+                                    <div style="font-size:13px;color:green;">Sudah dijadwalkan: {{ c.slot.day }} {{ c.slot.start|replace(':', '.') }} – {{ c.slot.end|replace(':', '.') }} ({{ c.slot.room }})</div>
+                                {% else %}
+                                    <div style="font-size:13px;color:orange;">Belum ada jadwal</div>
+                                {% endif %}
+                            {% endif %}
+                        {% else %}
+                            <strong style="color:green;">Tersedia</strong>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if c.selected_by|length < 2 and username not in c.selected_by %}
+                            <a class="btn btn-primary" href="{{ url_for('choose_course', course_id=c._id) }}">Pilih</a>
+                        {% elif username in c.selected_by and not c.has_slot %}
+                            <!-- Dosen memilih kursus tapi belum assign slot: beri tombol untuk memilih slot -->
+                            <a class="btn btn-primary" href="{{ url_for('dosen_select_slot', course_id=c._id) }}">Pilih Jadwal</a>
+                        {% else %}
+                            <span style="color:var(--muted);">Tidak tersedia</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% endfor %}
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <h2 class="page-title">📊 Analitik Kesesuaian Jadwal</h2>
+        <div style="color:var(--muted); font-size:13px">Analisis preferensi dan probabilitas kesesuaian jadwal dosen</div>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-primary" href="{{ url_for('export_schedule_with_probability') }}">📥 Export dengan Probabilitas</a>
+        <a class="btn btn-ghost" href="{{ url_for('koordinator') }}">Kembali</a>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="analytics-grid">
+    <div class="stat">
+        <div class="label">Total Jadwal</div>
+        <div class="value">{{ total_schedules }}</div>
+    </div>
+    
+    <div class="stat">
+        <div class="label">Rata-rata Score</div>
+        <div class="value">{{ "%.1f"|format(overall_avg_score) }}%</div>
+    </div>
+    
+    <div class="stat">
+        <div class="label">Excellent Match</div>
+        <div class="value">{{ quality_counts.Excellent }}</div>
+        <div style="font-size: 13px; color: var(--muted); margin-top:8px; font-weight:500;">{{ "%.1f"|format(quality_percentages.Excellent) }}%</div>
+    </div>
+    
+    <div class="stat">
+        <div class="label">Good Match</div>
+        <div class="value">{{ quality_counts.Good }}</div>
+        <div style="font-size: 13px; color: var(--muted); margin-top:8px; font-weight:500;">{{ "%.1f"|format(quality_percentages.Good) }}%</div>
+    </div>
+</div>
+
+<!-- Quality Distribution Chart -->
+<div class="analytics-card">
+    <h4>📊 Distribusi Kesesuaian Jadwal</h4>
+    <div style="margin-top: 20px;">
+        <div style="display: grid; gap: 14px;">
+            <!-- Excellent -->
+            <div class="chart-bar">
+                <div class="bar-label">
+                    <span class="badge badge-excellent">Excellent</span>
+                </div>
+                <div class="bar-container">
+                    <div class="bar-fill excellent" style="width: {{ quality_percentages.Excellent }}%;">
+                        {{ quality_counts.Excellent }}
+                    </div>
+                </div>
+                <div style="min-width:60px; text-align:right; font-size:12px; font-weight:600; color:#475569;">
+                    {{ "%.1f"|format(quality_percentages.Excellent) }}%
+                </div>
+            </div>
+            
+            <!-- Good -->
+            <div class="chart-bar">
+                <div class="bar-label">
+                    <span class="badge badge-good">Good</span>
+                </div>
+                <div class="bar-container">
+                    <div class="bar-fill good" style="width: {{ quality_percentages.Good }}%;">
+                        {{ quality_counts.Good }}
+                    </div>
+                </div>
+                <div style="min-width:60px; text-align:right; font-size:12px; font-weight:600; color:#475569;">
+                    {{ "%.1f"|format(quality_percentages.Good) }}%
+                </div>
+            </div>
+            
+            <!-- Acceptable -->
+            <div class="chart-bar">
+                <div class="bar-label">
+                    <span class="badge badge-acceptable">Acceptable</span>
+                </div>
+                <div class="bar-container">
+                    <div class="bar-fill acceptable" style="width: {{ quality_percentages.Acceptable }}%;">
+                        {{ quality_counts.Acceptable }}
+                    </div>
+                </div>
+                <div style="min-width:60px; text-align:right; font-size:12px; font-weight:600; color:#475569;">
+                    {{ "%.1f"|format(quality_percentages.Acceptable) }}%
+                </div>
+            </div>
+            
+            <!-- Poor -->
+            <div class="chart-bar">
+                <div class="bar-label">
+                    <span class="badge badge-poor">Poor</span>
+                </div>
+                <div class="bar-container">
+                    <div class="bar-fill poor" style="width: {{ quality_percentages.Poor }}%;">
+                        {{ quality_counts.Poor }}
+                    </div>
+                </div>
+                <div style="min-width:60px; text-align:right; font-size:12px; font-weight:600; color:#475569;">
+                    {{ "%.1f"|format(quality_percentages.Poor) }}%
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lecturer Statistics -->
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <div>
+            <h3 style="margin:0;">Kesesuaian Jadwal per Dosen</h3>
+            <p style="color: var(--muted); font-size: 14px; margin:4px 0 0 0;">
+                Dosen diurutkan berdasarkan rata-rata preference score (tertinggi ke terendah)
+            </p>
+        </div>
+        <input type="text" id="searchAnalytics" placeholder="🔍 Cari dosen..." style="width:300px; padding:10px 14px; border:1px solid #e6e9ef; border-radius:8px; font-size:14px;" onkeyup="searchAnalyticsTable()">
+    </div>
+    
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>No</th>
+                    <th>Nama Dosen</th>
+                    <th style="text-align: center;">Total Kelas</th>
+                    <th style="text-align: center;">Rata-rata Score</th>
+                    <th style="text-align: center;">Excellent</th>
+                    <th style="text-align: center;">Good</th>
+                    <th style="text-align: center;">Acceptable</th>
+                    <th style="text-align: center;">Poor</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dosen, stats in sorted_lecturers %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td style="font-weight: 500;">{{ dosen }}</td>
+                    <td class="text-center">{{ stats.total_classes }}</td>
+                    <td class="text-center">
+                        <span class="score-badge">{{ "%.1f"|format(stats.avg_score) }}%</span>
+                    </td>
+                    <td class="text-center" style="color: #10b981; font-weight: 600;">{{ stats.excellent }}</td>
+                    <td class="text-center" style="color: #3b82f6; font-weight: 600;">{{ stats.good }}</td>
+                    <td class="text-center" style="color: #f59e0b; font-weight: 600;">{{ stats.acceptable }}</td>
+                    <td class="text-center" style="color: #ef4444; font-weight: 600;">{{ stats.poor }}</td>
+                    <td>
+                        {% if stats.avg_score >= 90 %}
+                            <span class="badge badge-excellent">Sangat Baik</span>
+                        {% elif stats.avg_score >= 70 %}
+                            <span class="badge badge-good">Baik</span>
+                        {% elif stats.avg_score >= 50 %}
+                            <span class="badge badge-acceptable">Cukup</span>
+                        {% else %}
+                            <span class="badge badge-poor">Perlu Review</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Recommendations -->
+{% set poor_lecturers = sorted_lecturers|selectattr('1.avg_score', 'lt', 50)|list %}
+{% if poor_lecturers %}
+<div class="card" style="background: #fef2f2; border-left: 4px solid #ef4444;">
+    <h3 style="color: #dc2626;">⚠️ Rekomendasi Perbaikan</h3>
+    <p style="margin-bottom: 12px;">
+        Dosen berikut memiliki rata-rata score rendah (<50%). Pertimbangkan untuk:
+    </p>
+    <ul style="margin-left: 20px; margin-bottom: 16px;">
+        <li>Review preferensi dosen (available_days, preferred_times, blocked_times)</li>
+        <li>Diskusi dengan dosen untuk fleksibilitas jadwal</li>
+        <li>Reschedule beberapa kelas ke slot yang lebih sesuai</li>
+    </ul>
+    <div style="font-weight: 500; margin-top: 12px;">
+        Dosen yang perlu review:
+    </div>
+    <ul style="margin-left: 20px; margin-top: 8px;">
+        {% for dosen, stats in poor_lecturers %}
+        <li><strong>{{ dosen }}</strong> - Score: {{ "%.1f"|format(stats.avg_score) }}% ({{ stats.poor }} jadwal poor)</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<!-- Info -->
+<div class="card" style="background: #f0f9ff; border-left: 4px solid #3b82f6;">
+    <h4 style="color: #1e40af; margin-bottom: 12px;">ℹ️ Penjelasan Score</h4>
+    <div style="display: grid; gap: 8px; font-size: 14px;">
+        <div><strong>Excellent (90-100%):</strong> Jadwal sangat sesuai dengan preferensi dosen (hari dan waktu preferred)</div>
+        <div><strong>Good (70-89%):</strong> Jadwal sesuai dengan preferensi, di hari yang tersedia</div>
+        <div><strong>Acceptable (50-69%):</strong> Jadwal di luar preferensi tapi masih dalam hari tersedia</div>
+        <div><strong>Poor (<50%):</strong> Jadwal di luar preferensi dosen, perlu review</div>
+    </div>
+</div>
+
+<script>
+function searchAnalyticsTable() {
+    const input = document.getElementById('searchAnalytics');
+    const filter = input.value.toUpperCase();
+    const table = document.querySelector('.table-responsive table');
+    const tr = table.getElementsByTagName('tr');
+    
+    for (let i = 1; i < tr.length; i++) {
+        const td = tr[i].getElementsByTagName('td')[1]; // Nama dosen di kolom ke-2
+        if (td) {
+            const txtValue = td.textContent || td.innerText;
+            if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                tr[i].style.display = '';
+            } else {
+                tr[i].style.display = 'none';
+            }
+        }
+    }
+}
+</script>
+
+{% endblock %}

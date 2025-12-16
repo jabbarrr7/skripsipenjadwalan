@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<section class="card hero-section">
+    <div class="hero-copy" style="flex:1; min-width:280px">
+        <h1 class="hero-title">Sistem Penjadwalan Fakultas</h1>
+        <p class="hero-text">Atur jadwal pengajaran, alokasikan mata kuliah ke dosen, dan kelola timeslot dengan cepat dan rapi. Hemat waktu administrasi, fokus pada proses pembelajaran.</p>
+
+        <div class="page-actions mt-sm">
+            <a href="/login" class="btn btn-primary btn-lg">Login</a>
+            <a href="/koordinator" class="btn btn-secondary btn-lg">Untuk Koordinator</a>
+        </div>
+
+        <div class="text-muted text-sm mt-md">Belum punya akun? Hubungi administrasi fakultas untuk mendaftar dan mendapatkan akses.</div>
+    </div>
+
+    <div class="hero-media" style="flex:1; min-width:260px; text-align:center">
+        <img src="https://images.unsplash.com/photo-1522202229161-7b2e1f3f3b5b?auto=format&fit=crop&w=900&q=80" alt="Ilustrasi" class="hero-image" />
+    </div>
+</section>
+
+<section class="card features-grid">
+    <div class="feature">
+        <h3>Mudah Digunakan</h3>
+        <p>Antarmuka sederhana untuk dosen dan koordinator — pilih mata kuliah, pesan slot, dan konfirmasi jadwal.</p>
+    </div>
+    <div class="feature">
+        <h3>Terintegrasi</h3>
+        <p>Data dosen, mata kuliah, dan timeslot tersimpan rapi di basis data untuk pelaporan dan optimasi jadwal.</p>
+    </div>
+    <div class="feature">
+        <h3>Aman & Terukur</h3>
+        <p>Hanya pengguna berwenang yang dapat mengubah jadwal; riwayat dan reservasi disimpan untuk audit.</p>
+    </div>
+</section>
+
+{% endblock %}

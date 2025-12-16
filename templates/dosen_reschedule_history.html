@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Riwayat Permintaan Reschedule Saya</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .request-card {background:#fff; border:1px solid #ddd; border-radius:8px; padding:14px; margin-bottom:14px;}
+        .status {font-weight:bold; font-size:11px; padding:2px 6px; border-radius:10px;}
+        .status.pending {background:#fff3e0; color:#f57c00;}
+        .status.approved {background:#e8f5e9; color:#2e7d32;}
+        .time-chip {background:#e0f2f1; color:#00695c; padding:2px 6px; border-radius:6px; font-size:11px;}
+        .notif-box {background:#e3f2fd; border-left:4px solid #1976d2; padding:10px; margin-top:8px; border-radius:4px; font-size:13px;}
+        .notif-success {background:#e8f5e9; border-left-color:#4caf50;}
+        .notif-partial {background:#fff3e0; border-left-color:#ff9800;}
+        .notif-failed {background:#ffebee; border-left-color:#f44336;}
+        .btn-delete {background:#f44336; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:11px;}
+        .btn-delete:hover {background:#d32f2f;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+            <h1>🕒 Riwayat Permintaan Reschedule</h1>
+            <a href="{{ url_for('dosen') }}" class="btn">← Kembali</a>
+        </div>
+        {% if reports %}
+            {% for r in reports %}
+            <div class="request-card">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <span class="status {{ r.status }}">{{ r.status.upper() }}</span>
+                        <small style="color:#555;">{{ r.created_at.strftime('%d %b %Y %H:%M') }}</small>
+                    </div>
+                    {% if r.status == 'pending' %}
+                    <button class="btn-delete" onclick="deleteRequest('{{ r._id }}')">🗑 Hapus</button>
+                    {% endif %}
+                </div>
+                <div style="margin-top:6px;">
+                    <strong>Hari:</strong>
+                    {% if r.unavailable_days %}
+                        {{ r.unavailable_days|join(', ') }}
+                    {% else %}
+                        {{ r.unavailable_day }}
+                    {% endif %}
+                    {% if r.unavailable_time_type == 'specific' and r.specific_time %}
+                        <span class="time-chip">Jam {{ r.specific_time }}</span>
+                    {% elif r.unavailable_time_type == 'range' and r.start_time and r.end_time %}
+                        <span class="time-chip">{{ r.start_time }} - {{ r.end_time }}</span>
+                    {% endif %}
+                </div>
+                {% if r.reason %}
+                <div style="color:#555; font-size:12px; margin-top:4px;">Alasan: {{ r.reason }}</div>
+                {% endif %}
+                {% if r.status == 'approved' %}
+                    {% if r.reschedule_result %}
+                        {% set moved = r.reschedule_result.moved %}
+                        {% set failed = r.reschedule_result.failed %}
+                        {% set total = r.reschedule_result.total or (moved + failed) %}
+                        {% if failed == 0 %}
+                            <div class="notif-box notif-success">
+                                <strong>✅ Semua kelas berhasil dipindahkan!</strong><br>
+                                {{ moved }} kelas telah dijadwalkan ulang sesuai permintaan Anda.
+                            </div>
+                        {% elif moved == 0 %}
+                            <div class="notif-box notif-failed">
+                                <strong>❌ Tidak ada kelas yang bisa dipindahkan</strong><br>
+                                {{ failed }} kelas gagal dijadwalkan ulang. Hubungi koordinator untuk penanganan manual.
+                                {% if r.reschedule_result.failed_courses %}
+                                <div style="font-size:11px; margin-top:4px;">Gagal: {{ r.reschedule_result.failed_courses|join(', ') }}</div>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <div class="notif-box notif-partial">
+                                <strong>⚠️ Penjadwalan ulang sebagian berhasil</strong><br>
+                                ✅ {{ moved }} kelas dipindah | ❌ {{ failed }} kelas gagal dipindah
+                                {% if r.reschedule_result.failed_courses %}
+                                <div style="font-size:11px; margin-top:4px;">Kelas gagal: {{ r.reschedule_result.failed_courses|join(', ') }}</div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="notif-box">
+                            <strong>ℹ️ Permintaan disetujui</strong><br>
+                            Koordinator telah menyetujui permintaan Anda.
+                        </div>
+                    {% endif %}
+                {% endif %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <p style="color:#999; text-align:center;">Belum ada permintaan reschedule.</p>
+        {% endif %}
+    </div>
+    <script>
+        async function deleteRequest(reportId) {
+            if(!confirm('Yakin ingin menghapus permintaan reschedule ini?')) return;
+            try {
+                const res = await fetch(`/dosen/delete_reschedule_request/${reportId}`, {method:'POST'});
+                const data = await res.json();
+                if(data.success) {
+                    alert('✅ '+data.message);
+                    location.reload();
+                } else {
+                    alert('❌ '+data.message);
+                }
+            } catch(e) {
+                alert('❌ Error: '+e.message);
+            }
+        }
+    </script>
+</body>
+</html>

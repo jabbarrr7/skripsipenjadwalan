@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2 class="page-title">Edit Slot</h2>
+    <div style="color:var(--muted); font-size:13px">Ubah waktu dan ruangan slot</div>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-ghost" href="/koordinator">Kembali</a>
+  </div>
+</div>
+
+<div class="card">
+  <form method="post" class="form-row">
+    <input name="day" placeholder="Hari" value="{{ slot.day }}" required style="width:160px">
+    <input name="start" placeholder="Mulai" value="{{ slot.start }}" required style="width:140px">
+    <input name="end" placeholder="Selesai" value="{{ slot.end }}" required style="width:140px">
+    <input name="room" placeholder="Ruangan" value="{{ slot.room }}" required style="width:140px">
+    <button class="btn btn-primary" type="submit">Simpan</button>
+  </form>
+</div>
+{% endblock %}

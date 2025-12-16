@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Lecturer Workload{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>📊 Lecturer Workload Distribution</h2>
+    <p class="text-muted">View teaching load for each lecturer</p>
+    
+    <a href="{{ url_for('koordinator_schedule') }}" class="btn btn-secondary mb-3">
+        <i class="fas fa-arrow-left"></i> Back
+    </a>
+    
+    <hr>
+    
+    {% if lecturer_stats %}
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            {% set total_lecturers = lecturer_stats|length %}
+            {% set avg_sks = (lecturer_stats.values()|sum(attribute='total_sks') / total_lecturers)|round(1) %}
+            {% set avg_sections = (lecturer_stats.values()|sum(attribute='total_sections') / total_lecturers)|round(1) %}
+            
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h3>{{ total_lecturers }}</h3>
+                        <p class="text-muted">Total Lecturers</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h3>{{ avg_sks }}</h3>
+                        <p class="text-muted">Avg SKS per Lecturer</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h3>{{ avg_sections }}</h3>
+                        <p class="text-muted">Avg Sections per Lecturer</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Lecturer Details -->
+        {% for lecturer, stats in lecturer_stats.items() %}
+        <div class="card mb-3">
+            <div class="card-header {% if stats.total_sks < 8 %}bg-warning{% elif stats.total_sks > 12 %}bg-danger text-white{% else %}bg-success text-white{% endif %}">
+                <h5 class="mb-0">{{ lecturer }}</h5>
+            </div>
+            <div class="card-body">
+                <!-- Stats Summary -->
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <strong>Total SKS:</strong> {{ stats.total_sks }}
+                        {% if stats.total_sks < 8 %}
+                            <span class="badge bg-warning">Under</span>
+                        {% elif stats.total_sks > 12 %}
+                            <span class="badge bg-danger">Over</span>
+                        {% else %}
+                            <span class="badge bg-success">Good</span>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Sections:</strong> {{ stats.total_sections }}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Courses:</strong> {{ stats.num_courses }}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Days:</strong> {{ stats.num_days }}
+                    </div>
+                </div>
+                
+                <!-- Courses List -->
+                <div class="mb-3">
+                    <strong>Teaching:</strong>
+                    {% for course in stats.courses %}
+                        <span class="badge bg-info">{{ course }}</span>
+                    {% endfor %}
+                </div>
+                
+                <!-- Days -->
+                <div class="mb-3">
+                    <strong>Days:</strong>
+                    {% for day in stats.days %}
+                        <span class="badge bg-secondary">{{ day }}</span>
+                    {% endfor %}
+                </div>
+                
+                <!-- Detailed Schedule -->
+                <details>
+                    <summary><strong>View Detailed Schedule</strong></summary>
+                    <table class="table table-sm mt-2">
+                        <thead>
+                            <tr>
+                                <th>Course</th>
+                                <th>Section</th>
+                                <th>Day</th>
+                                <th>Time</th>
+                                <th>Room</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for detail in stats.sections_detail %}
+                            <tr>
+                                <td>{{ detail.course }}</td>
+                                <td>{{ detail.section }}</td>
+                                <td>{{ detail.day }}</td>
+                                <td>{{ detail.time }}</td>
+                                <td>{{ detail.room }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </details>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="alert alert-info">
+            No lecturer workload data found. Generate a schedule first.
+        </div>
+    {% endif %}
+</div>
+
+<style>
+    .card {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .badge {
+        margin-right: 5px;
+        font-size: 0.85rem;
+    }
+    
+    details {
+        cursor: pointer;
+        margin-top: 10px;
+    }
+    
+    details summary {
+        user-select: none;
+    }
+    
+    details[open] summary {
+        margin-bottom: 10px;
+    }
+</style>
+{% endblock %}

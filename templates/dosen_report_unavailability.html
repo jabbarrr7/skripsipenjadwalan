@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Laporan Ketidaktersediaan</h2>
+    <p class="text-muted">Anda dapat menambahkan beberapa laporan ketidaktersediaan (misal: Senin sepanjang hari + Semua hari jam 07:00-10:00)</p>
+    
+    <form method="POST" id="unavailabilityForm">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Daftar Ketidaktersediaan</h5>
+            </div>
+            <div class="card-body">
+                <div id="unavailabilityContainer">
+                    <!-- Existing entries will be loaded here, or default single entry -->
+                    {% if existing_entries and existing_entries|length > 0 %}
+                        {% for entry in existing_entries %}
+                        <div class="unavailability-entry mb-3 p-3 border rounded">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <label class="form-label">Hari</label>
+                                    <select name="unavailable_day[]" class="form-control" required>
+                                        <option value="">-- Pilih Hari --</option>
+                                        <option value="*" {% if entry.day == '*' %}selected{% endif %}>Semua Hari</option>
+                                        <option value="Senin" {% if entry.day == 'Senin' %}selected{% endif %}>Senin</option>
+                                        <option value="Selasa" {% if entry.day == 'Selasa' %}selected{% endif %}>Selasa</option>
+                                        <option value="Rabu" {% if entry.day == 'Rabu' %}selected{% endif %}>Rabu</option>
+                                        <option value="Kamis" {% if entry.day == 'Kamis' %}selected{% endif %}>Kamis</option>
+                                        <option value="Jumat" {% if entry.day == 'Jumat' %}selected{% endif %}>Jumat</option>
+                                        <option value="Sabtu" {% if entry.day == 'Sabtu' %}selected{% endif %}>Sabtu</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Tipe Waktu</label>
+                                    <select name="time_type[]" class="form-control time-type-selector" required>
+                                        <option value="all" {% if entry.time_type == 'all' %}selected{% endif %}>Sepanjang Hari</option>
+                                        <option value="range" {% if entry.time_type == 'range' %}selected{% endif %}>Rentang Waktu</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2 time-range-input" style="{% if entry.time_type == 'all' %}display:none;{% endif %}">
+                                    <label class="form-label">Jam Mulai</label>
+                                    <input type="time" name="start_time[]" class="form-control" value="{{ entry.start }}">
+                                </div>
+                                <div class="col-md-2 time-range-input" style="{% if entry.time_type == 'all' %}display:none;{% endif %}">
+                                    <label class="form-label">Jam Selesai</label>
+                                    <input type="time" name="end_time[]" class="form-control" value="{{ entry.end }}">
+                                </div>
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <button type="button" class="btn btn-danger btn-sm remove-entry w-100">🗑️ Hapus</button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <!-- Default single entry -->
+                        <div class="unavailability-entry mb-3 p-3 border rounded">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <label class="form-label">Hari</label>
+                                    <select name="unavailable_day[]" class="form-control" required>
+                                        <option value="">-- Pilih Hari --</option>
+                                        <option value="*">Semua Hari</option>
+                                        <option value="Senin">Senin</option>
+                                        <option value="Selasa">Selasa</option>
+                                        <option value="Rabu">Rabu</option>
+                                        <option value="Kamis">Kamis</option>
+                                        <option value="Jumat">Jumat</option>
+                                        <option value="Sabtu">Sabtu</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Tipe Waktu</label>
+                                    <select name="time_type[]" class="form-control time-type-selector" required>
+                                        <option value="all">Sepanjang Hari</option>
+                                        <option value="range">Rentang Waktu</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2 time-range-input" style="display:none;">
+                                    <label class="form-label">Jam Mulai</label>
+                                    <input type="time" name="start_time[]" class="form-control" value="07:00">
+                                </div>
+                                <div class="col-md-2 time-range-input" style="display:none;">
+                                    <label class="form-label">Jam Selesai</label>
+                                    <input type="time" name="end_time[]" class="form-control" value="17:00">
+                                </div>
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <button type="button" class="btn btn-danger btn-sm remove-entry w-100">🗑️ Hapus</button>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <button type="button" class="btn btn-secondary" id="addEntryBtn">➕ Tambah Ketidaktersediaan</button>
+                
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <strong>Contoh Penggunaan:</strong><br>
+                        1. Senin sepanjang hari tidak bisa mengajar → Pilih "Senin" + "Sepanjang Hari"<br>
+                        2. Semua hari jam 07:00-10:00 tidak bisa → Pilih "Semua Hari" + "Rentang Waktu" (07:00-10:00)<br>
+                        3. Bisa kombinasikan keduanya dengan klik "Tambah Ketidaktersediaan"
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">💾 Simpan Laporan</button>
+        <a href="{{ url_for('dosen') }}" class="btn btn-secondary">Batal</a>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('unavailabilityContainer');
+    
+    // Handle time type change
+    container.addEventListener('change', function(e) {
+        if (e.target.classList.contains('time-type-selector')) {
+            const entry = e.target.closest('.unavailability-entry');
+            const timeInputs = entry.querySelectorAll('.time-range-input');
+            
+            if (e.target.value === 'range') {
+                timeInputs.forEach(input => input.style.display = 'block');
+            } else {
+                timeInputs.forEach(input => input.style.display = 'none');
+            }
+        }
+    });
+    
+    // Handle add entry
+    document.getElementById('addEntryBtn').addEventListener('click', function() {
+        const entryHtml = `
+            <div class="unavailability-entry mb-3 p-3 border rounded">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label class="form-label">Hari</label>
+                        <select name="unavailable_day[]" class="form-control" required>
+                            <option value="">-- Pilih Hari --</option>
+                            <option value="*">Semua Hari</option>
+                            <option value="Senin">Senin</option>
+                            <option value="Selasa">Selasa</option>
+                            <option value="Rabu">Rabu</option>
+                            <option value="Kamis">Kamis</option>
+                            <option value="Jumat">Jumat</option>
+                            <option value="Sabtu">Sabtu</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Tipe Waktu</label>
+                        <select name="time_type[]" class="form-control time-type-selector" required>
+                            <option value="all">Sepanjang Hari</option>
+                            <option value="range">Rentang Waktu</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 time-range-input" style="display:none;">
+                        <label class="form-label">Jam Mulai</label>
+                        <input type="time" name="start_time[]" class="form-control" value="07:00">
+                    </div>
+                    <div class="col-md-2 time-range-input" style="display:none;">
+                        <label class="form-label">Jam Selesai</label>
+                        <input type="time" name="end_time[]" class="form-control" value="17:00">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="button" class="btn btn-danger btn-sm remove-entry w-100">🗑️ Hapus</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', entryHtml);
+    });
+    
+    // Handle remove entry
+    container.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-entry') || e.target.closest('.remove-entry')) {
+            const entry = e.target.closest('.unavailability-entry');
+            const totalEntries = container.querySelectorAll('.unavailability-entry').length;
+            
+            if (totalEntries > 1) {
+                entry.remove();
+            } else {
+                alert('Minimal harus ada 1 entry. Jika tidak ingin melaporkan ketidaktersediaan, klik tombol Batal.');
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

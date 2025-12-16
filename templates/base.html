@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <title>{{ title }}</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <!-- SweetAlert2 CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+</head>
+<body {% if hide_sidebar %}class="no-sidebar"{% endif %}>
+    {% if not hide_sidebar %}
+    <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+    <div class="sidebar" id="sidebar">
+        {# Sidebar content depends on logged-in user's role #}
+        {% if session.get('user') and session.get('user')['role'] == 'koordinator' %}
+            <div class="logo"><h3>Koordinator</h3></div>
+            <a href="/koordinator">Dashboard</a>
+            <a href="/koordinator_courses">Mata Kuliah</a>
+            <a href="/koordinator_dosen">Dosen</a>
+            <a href="/koordinator_timeslot">Timeslot</a>
+            <a href="/koordinator_schedule">Jadwal Lengkap</a>
+            <a href="/koordinator/unavailability_requests">Reschedule Requests</a>
+            <a href="/koordinator/unavailability_history">History Reschedule</a>
+            <div class="spacer"></div>
+            <a class="logout" href="/logout">Logout</a>
+
+        {% elif session.get('user') and session.get('user')['role'] == 'dosen' %}
+            <div class="logo">
+                <div class="user-info">
+                    <div class="avatar">
+                        <div class="avatar-initials">{{ session.get('user')['name'][:1] | upper }}</div>
+                    </div>
+                    <div class="user-name">{{ session.get('user')['name'] }}</div>
+                </div>
+            </div>
+            <a href="/dosen">Dashboard</a>
+            <a href="/dosen/select_course">Pilih Mata Kuliah</a>
+            <a href="/dosen/select_slot">Pilih Jadwal</a>
+            <a href="/dosen/preferences">Preferensi</a>
+            <a href="/dosen/report_unavailability">Lapor Ketidaktersediaan</a>
+            <a href="/dosen/request_reschedule">Reschedule Darurat</a>
+            <div class="spacer"></div>
+            <a class="logout" href="/logout">Logout</a>
+
+        {% else %}
+            <div class="logo"><h3>Penjadwalan</h3></div>
+            <a href="/">Beranda</a>
+            <div class="spacer"></div>
+            <a class="logout" href="/login" style="background:transparent;border-radius:8px;padding:8px 12px;color:#dbeafe;text-decoration:none;">Login</a>
+        {% endif %}
+
+    </div>
+    {% endif %}
+
+    <div class="content" id="content">
+        {# Flash messages area so server-side flashes show as in-page alerts/modal triggers #}
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div id="flash-container">
+                    {% for m in messages %}
+                        <div class="flash flash-warning">{{ m }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <footer class="site-footer">
+        &copy; 2025 Penjadwalan — informatika. Semua hak dilindungi.
+    </footer>
+    <script>
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const content = document.getElementById('content');
+        const isMobile = window.innerWidth <= 900;
+        if (isMobile) {
+            // Untuk mobile: toggle class 'open' untuk slide in/out
+            sidebar.classList.toggle('open');
+        } else {
+            // Untuk desktop: toggle class 'collapsed' untuk menyusut
+            sidebar.classList.toggle('collapsed');
+            content.classList.toggle('shifted');
+        }
+    }
+    // Opsional: Tutup sidebar otomatis di mobile saat klik di luar
+    document.addEventListener('click', function(event) {
+        const sidebar = document.getElementById('sidebar');
+        const toggle = document.querySelector('.sidebar-toggle');
+        const isMobile = window.innerWidth <= 900;
+        if (isMobile && !sidebar.contains(event.target) && !toggle.contains(event.target) && sidebar.classList.contains('open')) {
+            sidebar.classList.remove('open');
+        }
+    });
+</script>
+    <!-- SweetAlert2 JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+    
+    <!-- Global Form Submission Handler with SweetAlert -->
+    <script>
+    // Store the form that's submitting for later use
+    let submittingForm = null;
+    
+    // Handle all form submissions with loading alert
+    document.addEventListener('submit', function(event) {
+        const form = event.target;
+        
+        // Skip if form has explicit handler (like submitAddSectionForm)
+        if (form.onsubmit && form.onsubmit.toString().includes('submitAddSectionForm')) {
+            return;
+        }
+        
+        // Skip file uploads temporarily (will show regular loading)
+        if (form.enctype === 'multipart/form-data') {
+            showFormLoading();
+            return;
+        }
+        
+        // Skip if form has data-disable-sweet-alert attribute
+        if (form.hasAttribute('data-disable-sweet-alert')) {
+            return;
+        }
+        
+        // Show loading alert
+        event.preventDefault();
+        submittingForm = form;
+        
+        Swal.fire({
+            title: '⏳ Sedang Memproses...',
+            html: '<p style="font-size:14px;">Mohon tunggu sebentar...</p>',
+            icon: 'info',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: (modal) => {
+                Swal.showLoading();
+                // Submit form after a tiny delay
+                setTimeout(() => {
+                    form.submit();
+                }, 100);
+            }
+        });
+    }, true);
+    
+    // Show success or error after page loads
+    window.addEventListener('load', function() {
+        // Check for flash messages
+        const flashContainer = document.getElementById('flash-container');
+        if (flashContainer) {
+            const flashes = flashContainer.querySelectorAll('.flash');
+            if (flashes.length > 0) {
+                // Get last flash message
+                const lastFlash = flashes[flashes.length - 1];
+                const message = lastFlash.textContent;
+                const isError = lastFlash.classList.contains('flash-error') || 
+                               lastFlash.classList.contains('flash-danger');
+                const isSuccess = lastFlash.classList.contains('flash-success');
+                const isWarning = lastFlash.classList.contains('flash-warning');
+                
+                // Close loading alert and show result
+                Swal.close();
+                
+                // Delay to let page load first
+                setTimeout(() => {
+                    if (isError) {
+                        Swal.fire({
+                            title: '❌ Gagal',
+                            html: `<p style="font-size:14px;">${message}</p>`,
+                            icon: 'error',
+                            confirmButtonText: 'OK',
+                            confirmButtonColor: '#ef4444'
+                        });
+                    } else if (isSuccess) {
+                        Swal.fire({
+                            title: '✅ Berhasil',
+                            html: `<p style="font-size:14px;">${message}</p>`,
+                            icon: 'success',
+                            confirmButtonText: 'OK',
+                            confirmButtonColor: '#22c55e',
+                            timer: 2000,
+                            timerProgressBar: true
+                        });
+                    } else if (isWarning) {
+                        Swal.fire({
+                            title: '⚠️ Perhatian',
+                            html: `<p style="font-size:14px;">${message}</p>`,
+                            icon: 'warning',
+                            confirmButtonText: 'OK',
+                            confirmButtonColor: '#f59e0b'
+                        });
+                    }
+                }, 500);
+            }
+        }
+    });
+    
+    function showFormLoading() {
+        Swal.fire({
+            title: '⏳ Sedang Memproses...',
+            html: '<p style="font-size:14px;">Sedang mengunggah file...</p>',
+            icon: 'info',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: (modal) => {
+                Swal.showLoading();
+            }
+        });
+    }
+    </script>
+    <!-- Modal for important flash messages (auto-opens when there are flashes) -->
+    <div id="flash-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4);

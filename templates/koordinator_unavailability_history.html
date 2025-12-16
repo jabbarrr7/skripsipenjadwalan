@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>History Reschedule Per Dosen</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .lecturer-block {background:#fff; border:1px solid #ddd; border-radius:8px; margin-bottom:18px;}
+        .lecturer-header {display:flex; justify-content:space-between; align-items:center; padding:12px 16px; cursor:pointer; background:#f5f7fa; border-radius:8px 8px 0 0;}
+        .badge {background:#1976d2; color:#fff; padding:2px 10px; border-radius:12px; font-size:12px;}
+        .request-item {border-top:1px solid #eee; padding:10px 16px; font-size:14px;}
+        .status {font-weight:bold; font-size:11px; padding:2px 6px; border-radius:10px;}
+        .status.pending {background:#fff3e0; color:#f57c00;}
+        .status.approved {background:#e8f5e9; color:#2e7d32;}
+        .more-link {color:#1976d2; font-size:12px; cursor:pointer; margin:8px 16px 12px; display:inline-block;}
+        .time-chip {background:#e0f2f1; color:#00695c; padding:2px 6px; border-radius:6px; font-size:11px;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h1>📚 History Reschedule Per Dosen</h1>
+            <div style="display:flex; gap:10px;">
+                <a href="{{ url_for('koordinator') }}" class="btn">← Dashboard</a>
+                <a href="{{ url_for('koordinator_unavailability_requests') }}" class="btn btn-warning">📋 Pending Requests</a>
+            </div>
+        </div>
+        {% if lecturers %}
+            {% for lect in lecturers %}
+            <div class="lecturer-block" id="block-{{ loop.index }}">
+                <div class="lecturer-header" onclick="toggleLecturer('{{ lect|replace(' ', '_') }}')">
+                    <div>
+                        <strong>{{ lect }}</strong>
+                        <span class="badge">{{ counts[lect] }} total</span>
+                        {% if counts[lect] > default_limit %}
+                          <small style="color:#666;">(menampilkan {{ default_limit }} pertama)</small>
+                        {% endif %}
+                    </div>
+                    <span id="arrow-{{ lect|replace(' ', '_') }}" style="font-size:18px;">▼</span>
+                </div>
+                <div id="list-{{ lect|replace(' ', '_') }}">
+                    {% for r in preview[lect] %}
+                    <div class="request-item">
+                        <div style="display:flex; justify-content:space-between;">
+                            <div>
+                                <span class="status {{ r.status }}">{{ r.status.upper() }}</span>
+                                <span style="color:#555;">{{ r.created_at.strftime('%d %b %Y %H:%M') }}</span>
+                            </div>
+                        </div>
+                        <div style="margin-top:4px;">
+                            <strong>Hari:</strong>
+                            {% if r.unavailable_days %}
+                                {{ r.unavailable_days|join(', ') }}
+                            {% else %}
+                                {{ r.unavailable_day }}
+                            {% endif %}
+                            {% if r.unavailable_time_type == 'specific' and r.specific_time %}
+                                <span class="time-chip">Jam {{ r.specific_time }}</span>
+                            {% elif r.unavailable_time_type == 'range' and r.start_time and r.end_time %}
+                                <span class="time-chip">{{ r.start_time }} - {{ r.end_time }}</span>
+                            {% endif %}
+                        </div>
+                        {% if r.reason %}
+                        <div style="color:#555; font-size:12px; margin-top:4px;">Alasan: {{ r.reason }}</div>
+                        {% endif %}
+                        {% if r.reschedule_result %}
+                        <div style="margin-top:6px; font-size:12px;">
+                            ✅ {{ r.reschedule_result.moved }} moved / ❌ {{ r.reschedule_result.failed }} failed
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                    {% if counts[lect] > default_limit %}
+                        <span class="more-link" onclick="showAll('{{ lect|replace(' ', '_') }}')">Tampilkan semua ({{ counts[lect] }} total)</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p style="color:#999; text-align:center;">Belum ada history reschedule.</p>
+        {% endif %}
+    </div>
+
+    <script>
+        const fullData = {{ grouped|tojson|safe }};
+        const limit = {{ default_limit }};
+        function toggleLecturer(id){
+            const el = document.getElementById('list-'+id);
+            const arrow = document.getElementById('arrow-'+id);
+            if(!el) return;
+            if(el.style.display==='none'){el.style.display='block'; arrow.textContent='▼';}
+            else {el.style.display='none'; arrow.textContent='▲';}
+        }
+        function showAll(id){
+            const el = document.getElementById('list-'+id);
+            if(!el) return;
+            const lectName = id.replace(/_/g,' ');
+            const arr = fullData[lectName] || [];
+            let html='';
+            arr.forEach(r=>{
+                html += `<div class="request-item">`+
+                    `<div style='display:flex; justify-content:space-between;'>`+
+                    `<div><span class='status ${r.status}'>${r.status.toUpperCase()}</span> <span style='color:#555;'>${formatDate(r.created_at)}</span></div>`+
+                    `</div>`+
+                    `<div style='margin-top:4px;'><strong>Hari:</strong> ${(r.unavailable_days && r.unavailable_days.length)? r.unavailable_days.join(', ') : r.unavailable_day}`+
+                    `${renderTime(r)}</div>`+
+                    `${r.reason? `<div style='color:#555; font-size:12px; margin-top:4px;'>Alasan: ${escapeHtml(r.reason)}</div>`:''}`+
+                    `${r.reschedule_result? `<div style='margin-top:6px; font-size:12px;'>✅ ${r.reschedule_result.moved} moved / ❌ ${r.reschedule_result.failed} failed</div>`:''}`+
+                    `</div>`;
+            });
+            html += `<span class='more-link' onclick='collapse("${id}")'>Sembunyikan</span>`;
+            el.innerHTML = html;
+        }
+        function collapse(id){
+            const el = document.getElementById('list-'+id);
+            const lectName = id.replace(/_/g,' ');
+            const arr = fullData[lectName] || [];
+            let html='';
+            arr.slice(0,limit).forEach(r=>{
+                html += `<div class="request-item">`+
+                    `<div style='display:flex; justify-content:space-between;'>`+
+                    `<div><span class='status ${r.status}'>${r.status.toUpperCase()}</span> <span style='color:#555;'>${formatDate(r.created_at)}</span></div>`+
+                    `</div>`+
+                    `<div style='margin-top:4px;'><strong>Hari:</strong> ${(r.unavailable_days && r.unavailable_days.length)? r.unavailable_days.join(', ') : r.unavailable_day}`+
+                    `${renderTime(r)}</div>`+
+                    `${r.reason? `<div style='color:#555; font-size:12px; margin-top:4px;'>Alasan: ${escapeHtml(r.reason)}</div>`:''}`+
+                    `${r.reschedule_result? `<div style='margin-top:6px; font-size:12px;'>✅ ${r.reschedule_result.moved} moved / ❌ ${r.reschedule_result.failed} failed</div>`:''}`+
+                    `</div>`;
+            });
+            if(arr.length>limit){html+=`<span class='more-link' onclick='showAll("${id}")'>Tampilkan semua (${arr.length} total)</span>`;}
+            el.innerHTML = html;
+        }
+        function renderTime(r){
+            if(r.unavailable_time_type==='specific' && r.specific_time) return ` <span class='time-chip'>Jam ${r.specific_time}</span>`;
+            if(r.unavailable_time_type==='range' && r.start_time && r.end_time) return ` <span class='time-chip'>${r.start_time} - ${r.end_time}</span>`;
+            return '';
+        }
+        function escapeHtml(str){return (str||'').replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+        function formatDate(dt){
+            // dt might be serialized; try parse
+            try {const d=new Date(dt['$date']||dt);return d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'})+" "+d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});}catch(e){return ''+dt;}
+        }
+    </script>
+</body>
+</html>

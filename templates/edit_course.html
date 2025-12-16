@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2 class="page-title">Edit Mata Kuliah</h2>
+    <div style="color:var(--muted); font-size:13px">Ubah informasi mata kuliah</div>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-ghost" href="/koordinator">Kembali</a>
+  </div>
+</div>
+
+<div class="card">
+  <form method="post" class="form-row">
+    <input name="course_name" placeholder="Nama Mata Kuliah" value="{{ course.course_name }}" required style="flex:1">
+    <input type="number" name="sks" placeholder="SKS" value="{{ course.sks }}" required style="width:120px">
+    <input type="text" name="semester" placeholder="Semester" value="{{ course.semester }}" required style="width:120px">
+    <button class="btn btn-primary" type="submit">Simpan</button>
+  </form>
+</div>
+{% endblock %}

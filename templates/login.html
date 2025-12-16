@@ -1,0 +1,406 @@
+// {% extends "base.html" %}
+
+{% block content %}
+<!-- Page-specific styles: all CSS inlined here so this page doesn't require external CSS changes -->
+<style>
+    /* hide the global sidebar when on login page */
+    .sidebar { display: none !important; }
+    /* allow content to be full width for the centered login card */
+    .content { margin-left: 0 !important; padding: 0; }
+
+    /* Prevent scrolling on the page */
+    body { overflow: hidden; }
+
+    /* Authentication / login styles (page-local) */
+    :root { 
+        --auth-bg-1: #e0f7ff; 
+        --auth-bg-2: #f4f6ff; 
+        --auth-bg-3: #f7f1ff; 
+        --auth-bg-4: #fff0f6; 
+        --auth-bg-5: #f0f9ff; /* Extra for richer gradient */
+        --primary-color: #4f46e5;
+        --secondary-color: #06b6d4;
+    }
+
+    .auth-page {
+        position: relative;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, var(--auth-bg-1) 0%, var(--auth-bg-2) 20%, var(--auth-bg-3) 40%, var(--auth-bg-4) 60%, var(--auth-bg-5) 80%, var(--auth-bg-1) 100%);
+        background-size: 500% 500%;
+        animation: gradientShift 10s ease infinite;
+        padding: 40px 20px;
+        overflow: hidden; /* Ensure no scrolling within the page */
+    }
+
+    @keyframes gradientShift {
+        0%, 100% { background-position: 0% 50%; }
+        25% { background-position: 100% 0%; }
+        50% { background-position: 100% 100%; }
+        75% { background-position: 0% 100%; }
+    }
+
+    /* Floating particles for extra visual appeal */
+    .auth-page::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: 
+            radial-gradient(circle at 20% 80%, rgba(79, 70, 229, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 80% 20%, rgba(6, 182, 212, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 40% 40%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
+        animation: particlesFloat 15s ease-in-out infinite;
+        z-index: 0;
+    }
+
+    @keyframes particlesFloat {
+        0%, 100% { transform: translateY(0) rotate(0deg); }
+        33% { transform: translateY(-20px) rotate(120deg); }
+        66% { transform: translateY(10px) rotate(240deg); }
+    }
+
+    /* Decorative half-image with a slanted (pointed) shape on the left */
+    .auth-page::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 60%; /* Slightly wider for better balance */
+        background-image: url("{{ url_for('static', filename='unimal_hd.jpg') }}"); /* Assuming HD image; replace with actual HD URL if needed, e.g., url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80') for a sample HD university image */
+        background-size: cover;
+        background-position: center center;
+        background-repeat: no-repeat;
+        clip-path: polygon(0 0, 88% 0, 65% 100%, 0% 100%);
+        filter: brightness(1) saturate(1.1) contrast(1.05);
+        opacity: 0.95;
+        z-index: 1;
+        animation: imageZoom 12s ease-in-out infinite alternate;
+    }
+
+    @keyframes imageZoom {
+        0% { transform: scale(1); }
+        100% { transform: scale(1.02); }
+    }
+
+    /* Subtle overlay to soften the image and keep text readable */
+    .auth-page .image-overlay {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 60%;
+        background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0.2) 100%);
+        clip-path: polygon(0 0, 88% 0, 65% 100%, 0% 100%);
+        z-index: 2;
+    }
+
+    /* Container for card and footer */
+    .auth-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        max-width: 450px;
+        z-index: 3;
+        position: relative;
+    }
+
+    /* Ensure the card sits above everything */
+    .auth-card { 
+        animation: cardBounceIn 1.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        margin-bottom: 20px; /* Space for footer */
+    }
+
+    @keyframes cardBounceIn {
+        0% { opacity: 0; transform: scale(0.8) translateY(50px); }
+        50% { opacity: 0.8; transform: scale(1.05) translateY(-10px); }
+        100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .auth-card {
+        width: 100%;
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(20px);
+        border-radius: 20px;
+        box-shadow: 0 25px 50px rgba(16,24,40,0.2), 0 0 0 1px rgba(255,255,255,0.3), inset 0 1px 0 rgba(255,255,255,0.5);
+        padding: 36px;
+        box-sizing: border-box;
+        transition: all 0.4s ease;
+    }
+
+    .auth-card:hover {
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: 0 35px 70px rgba(16,24,40,0.3), 0 0 0 1px rgba(99,102,241,0.2), inset 0 1px 0 rgba(255,255,255,0.7);
+    }
+
+    .auth-brand {
+        text-align: center;
+        margin-bottom: 28px;
+    }
+    .auth-brand h1 { 
+        margin: 0; 
+        font-size: 28px; 
+        font-weight: 800;
+        background: linear-gradient(90deg, var(--primary-color), var(--secondary-color), var(--primary-color));
+        background-size: 200% 200%;
+        animation: textGradient 4s ease infinite;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: -0.5px;
+    }
+
+    @keyframes textGradient {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+    }
+
+    .auth-brand p { 
+        margin: 10px 0 0; 
+        color: #6b7280; 
+        font-size: 15px;
+        font-weight: 500;
+    }
+
+    .form-label { 
+        display: block; 
+        margin-bottom: 10px; 
+        color: #374151; 
+        font-weight: 600; 
+        font-size: 15px;
+        transition: color 0.3s ease;
+    }
+    .form-control-auth {
+        width: 100%;
+        padding: 14px 18px;
+        border-radius: 12px;
+        border: 2px solid #e6e9ef;
+        outline: none;
+        box-sizing: border-box;
+        font-size: 16px;
+        color: #111827;
+        margin-bottom: 20px;
+        background: rgba(255, 255, 255, 0.9);
+        transition: all 0.3s ease;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .form-control-auth:focus { 
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 6px rgba(99,102,241,0.15), inset 0 1px 3px rgba(0,0,0,0.1);
+        background: #fff;
+        transform: translateY(-2px);
+    }
+
+    .auth-actions { 
+        margin-top: 24px; 
+        display: flex; 
+        gap: 12px; 
+        align-items: center;
+    }
+    .btn-primary-auth {
+        flex: 1;
+        padding: 14px 18px;
+        background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+        background-size: 300% 300%;
+        animation: buttonShimmer 5s ease infinite;
+        color: white;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: 700;
+        font-size: 16px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+    }
+
+    @keyframes buttonShimmer {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+    }
+
+    .btn-primary-auth:hover { 
+        transform: translateY(-3px) scale(1.05);
+        box-shadow: 0 8px 25px rgba(79, 70, 229, 0.4);
+    }
+
+    .aux-link { 
+        font-size: 14px; 
+        color: #4b5563; 
+        text-decoration: none;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+    .aux-link::after {
+        content: "";
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 0;
+        height: 2px;
+        background: var(--primary-color);
+        transition: width 0.3s ease;
+    }
+    .aux-link:hover { 
+        color: var(--primary-color);
+    }
+    .aux-link:hover::after {
+        width: 100%;
+    }
+
+    /* Footer for the page */
+    .auth-footer {
+        text-align: center;
+        margin-top: 20px;
+        font-size: 14px;
+        color: #9ca3af;
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(10px);
+        padding: 12px 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        animation: footerFadeIn 1.5s ease-out 0.8s both;
+    }
+
+    @keyframes footerFadeIn {
+        0% { opacity: 0; transform: translateY(20px); }
+        100% { opacity: 1; transform: translateY(0); }
+    }
+
+    .auth-footer p {
+        margin: 0;
+    }
+
+    .auth-footer .aux-link {
+        color: var(--primary-color);
+        font-weight: 500;
+    }
+
+    @media (max-width: 480px) {
+        .auth-card { 
+            padding: 28px; 
+            border-radius: 16px;
+            margin: 0 16px;
+            max-width: 100%;
+        }
+        .auth-page::before, .auth-page .image-overlay { display: none; } /* Hide decorative elements on small screens */
+        .auth-brand h1 { font-size: 24px; }
+        .auth-page::after { display: none; } /* Hide particles on small screens for performance */
+        .auth-footer { padding: 10px 16px; font-size: 13px; }
+    }
+
+    /* Flash message with enhanced animation */
+    .flash {
+        background: linear-gradient(90deg, #fff1f2, #fef2f2);
+        border: 2px solid #fecaca;
+        color: #991b1b;
+        padding: 12px 18px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        font-size: 15px;
+        text-align: center;
+        animation: flashShake 0.5s ease-in-out, flashGlow 2s ease-in-out infinite alternate;
+        box-shadow: 0 4px 12px rgba(254, 202, 202, 0.3);
+    }
+
+    @keyframes flashShake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+    }
+
+    @keyframes flashGlow {
+        0% { box-shadow: 0 4px 12px rgba(254, 202, 202, 0.3); }
+        100% { box-shadow: 0 4px 20px rgba(254, 202, 202, 0.5); }
+    }
+</style>
+
+<div class="auth-page">
+    <div class="image-overlay"></div>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-brand">
+                <h1>Penjadwalan Perkuliahan</h1>
+                <p>Masuk untuk mengelola jadwal dan data</p>
+            </div>
+
+            {%- with messages = get_flashed_messages() -%}
+                {%- if messages -%}
+                    <div class="flash">{{ messages[0] }}</div>
+                {%- endif -%}
+            {%- endwith -%}
+
+            <form method="POST" autocomplete="off" id="loginForm">
+                <label class="form-label" for="identifier">Username (koordinator) atau Email (dosen)</label>
+                <input id="identifier" type="text" name="identifier" class="form-control-auth" required>
+
+                <label class="form-label" for="password">Password</label>
+                <input id="password" type="password" name="password" class="form-control-auth" required>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px;">
+                    <label style="display:flex; align-items:center; gap:8px; font-size:14px; color:#374151;">
+                        <input type="checkbox" name="remember"> Ingat saya
+                    </label>
+                    <a class="aux-link" href="#">Lupa password?</a>
+                </div>
+
+                <div class="auth-actions">
+                    <button class="btn-primary-auth" type="submit">Masuk</button>
+                </div>
+            </form>
+
+            <div class="login-footer">
+                Belum punya akun? <a href="#" class="aux-link">Hubungi admin</a>
+            </div>
+        </div>
+
+        <!-- New Footer Section -->
+        <div class="auth-footer">
+            <p>&copy; 2023 Universitas Malikussaleh. Semua hak dilindungi. | <a href="#" class="aux-link">Kebijakan Privasi</a> | <a href="#" class="aux-link">Bantuan</a></p>
+        </div>
+    </div>
+</div>
+
+<script>
+// Login form with sweet alert
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    Swal.fire({
+        title: '🔐 Login Sedang Diproses',
+        html: '<p style="font-size:14px;">Memverifikasi kredensial Anda...</p>',
+        icon: 'info',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: (modal) => {
+            Swal.showLoading();
+            // Submit form
+            setTimeout(() => {
+                this.submit();
+            }, 500);
+        }
+    });
+});
+
+// Show error if exists
+window.addEventListener('load', function() {
+    const flash = document.querySelector('.flash');
+    if (flash && flash.textContent.includes('Salah') || flash && flash.textContent.includes('tidak')) {
+        Swal.fire({
+            title: '❌ Login Gagal',
+            html: `<p style="font-size:14px;">${flash.textContent}</p>`,
+            icon: 'error',
+            confirmButtonText: 'Coba Lagi',
+            confirmButtonColor: '#ef4444'
+        });
+    }
+});
+</script>
+
+{% endblock %}

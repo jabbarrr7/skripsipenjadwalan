@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Verify Conflicts{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>🔍 Conflict Verification</h2>
+    <p class="text-muted">Check for scheduling conflicts</p>
+    
+    <a href="{{ url_for('koordinator_schedule') }}" class="btn btn-secondary mb-3">
+        <i class="fas fa-arrow-left"></i> Back
+    </a>
+    
+    <hr>
+    
+    <!-- Summary -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card text-center {% if conflicts|length == 0 %}border-success{% else %}border-danger{% endif %}">
+                <div class="card-body">
+                    <h1 class="{% if conflicts|length == 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ conflicts|length }}
+                    </h1>
+                    <p class="text-muted">Conflicts Found</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h1 class="text-info">{{ total_schedules }}</h1>
+                    <p class="text-muted">Total Schedules</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% if conflicts|length == 0 %}
+        <!-- No Conflicts -->
+        <div class="alert alert-success text-center" role="alert">
+            <h4><i class="fas fa-check-circle"></i> Perfect!</h4>
+            <p class="mb-0">No conflicts found. The schedule is valid and ready to use.</p>
+        </div>
+    {% else %}
+        <!-- Conflicts List -->
+        <div class="alert alert-danger" role="alert">
+            <h5><i class="fas fa-exclamation-triangle"></i> Conflicts Detected</h5>
+            <p>The following conflicts were found in the schedule:</p>
+        </div>
+        
+        {% for conflict in conflicts %}
+        <div class="card mb-3 border-danger">
+            <div class="card-header bg-danger text-white">
+                <strong>{{ conflict.type }}</strong>
+            </div>
+            <div class="card-body">
+                {% if conflict.type == 'Lecturer Conflict' %}
+                    <p><strong>Lecturer:</strong> {{ conflict.lecturer }}</p>
+                    <p><strong>Time:</strong> {{ conflict.day }} at {{ conflict.time }}</p>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Class 1:</strong><br>
+                            {{ conflict.course1 }} ({{ conflict.section1 }})
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Class 2:</strong><br>
+                            {{ conflict.course2 }} ({{ conflict.section2 }})
+                        </div>
+                    </div>
+                {% elif conflict.type == 'Room Conflict' %}
+                    <p><strong>Room:</strong> {{ conflict.room }}</p>
+                    <p><strong>Time:</strong> {{ conflict.day }} at {{ conflict.time }}</p>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Class 1:</strong><br>
+                            {{ conflict.course1 }} ({{ conflict.section1 }})<br>
+                            <small class="text-muted">{{ conflict.lecturer1 }}</small>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Class 2:</strong><br>
+                            {{ conflict.course2 }} ({{ conflict.section2 }})<br>
+                            <small class="text-muted">{{ conflict.lecturer2 }}</small>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+        
+        <!-- Action Button -->
+        <div class="text-center mt-4">
+            <a href="{{ url_for('generate_hybrid_schedule') }}" class="btn btn-warning btn-lg">
+                <i class="fas fa-redo"></i> Regenerate Schedule
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+    .card {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}

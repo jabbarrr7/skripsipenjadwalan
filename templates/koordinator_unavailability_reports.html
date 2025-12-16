@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <h2 class="page-title">Laporan Ketidaktersediaan Dosen</h2>
+        <div style="color:var(--muted); font-size:13px">
+            Daftar laporan ketidaktersediaan dosen yang perlu ditinjau
+        </div>
+    </div>
+
+    <div class="page-actions">
+        <a class="btn btn-ghost" href="/koordinator">Kembali ke Dashboard</a>
+    </div>
+</div>
+
+<div class="card" style="margin-top:18px">
+    <h3>Laporan Ketidaktersediaan</h3>
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>Dosen</th>
+                    <th>Hari Tidak Tersedia</th>
+                    <th>Tanggal Laporan</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for report in reports %}
+                <tr>
+                    <td>{{ report.dosen_name or '-' }}</td>
+                    <td>{{ report.unavailable_days|join(', ') if report.unavailable_days else '-' }}</td>
+                    <td>{{ report.reported_at.strftime('%Y-%m-%d %H:%M') if report.reported_at else '-' }}</td>
+                    <td>
+                        {% if report.status == 'pending' %}
+                        <span class="badge badge-warning">Pending</span>
+                        {% elif report.status == 'reviewed' %}
+                        <span class="badge badge-success">Reviewed</span>
+                        {% else %}
+                        <span class="badge badge-secondary">{{ report.status or 'Unknown' }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

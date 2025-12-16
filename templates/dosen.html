@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <h2 class="page-title">Dashboard Dosen</h2>
+        <div class="text-muted text-sm">Halo, {{ username }}</div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Jadwal Anda</h3>
+    <p>Berikut jadwal yang sudah Anda pilih.</p>
+
+    <div class="table-responsive">
+        {% if assigned_by_day %}
+            {% for day, slots in assigned_by_day %}
+                <h4 class="text-muted" style="margin:10px 0">{{ day }}</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Hari</th>
+                            <th>Jam</th>
+                            <th>Ruangan</th>
+                            <th>Mata Kuliah</th>
+                            <th>SKS</th>
+                            <th>Kesesuaian</th>
+                            <th>Score</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for slot in slots %}
+                    <tr>
+                        <td>{{ slot.day or '-' }}</td>
+                        <td>{% if slot.start %}{{ slot.start|replace(':', '.') }} – {{ slot.end|replace(':', '.') }}{% else %}-{% endif %}</td>
+                        <td>{{ slot.room or '-' }}</td>
+                        <td>{{ slot.course_name or '-' }}</td>
+                        <td>{{ slot.sks or '-' }}</td>
+                        <td>
+                            {% set quality = slot.match_quality|default('Acceptable') %}
+                            {% if quality == 'Excellent' %}
+                                <span class="badge badge-excellent">{{ quality }}</span>
+                            {% elif quality == 'Good' %}
+                                <span class="badge badge-good">{{ quality }}</span>
+                            {% elif quality == 'Acceptable' %}
+                                <span class="badge badge-acceptable">{{ quality }}</span>
+                            {% else %}
+                                <span class="badge badge-poor">{{ quality }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center"><span class="score-badge">{{ slot.preference_score|default(50) }}%</span></td>
+                        <td>
+                            <a class="btn btn-sm btn-ghost" href="{{ url_for('change_slot', slot_id=slot._id) }}">Edit</a>
+                            <a class="btn btn-sm btn-danger" href="{{ url_for('unassign_slot', slot_id=slot._id) }}">Hapus</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            {% endfor %}
+        {% else %}
+            <div class="text-muted">Belum ada jadwal yang dipilih. Gunakan menu di sidebar untuk memilih.</div>
+        {% endif %}
+
+        {# Show all booked courses (that may not yet have an assigned slot) #}
+        {% if booked_courses %}
+            {% for bc in booked_courses %}
+                {% if not bc.has_slot %}
+                    <div style="margin-top:8px">
+                        <strong>{{ bc.course_name }}</strong> &nbsp; <small style="color:var(--muted)">({{ bc.sks }} SKS)</small>
+                        <a class="btn btn-primary btn-sm" href="{{ url_for('dosen_select_slot', course_id=bc._id) }}" style="margin-left:8px">Pilih Slot</a>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <h3>Pilih Waktu Mengajar</h3>
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr><th>Hari</th><th>Mulai</th><th>Selesai</th><th>Ruangan</th><th>Dosen</th><th>Aksi</th></tr>
+            </thead>
+            <tbody>
+            {% for slot in schedule %}
+                <tr>
+                    <td>{{ slot.day }}</td>
+                    <td>{{ slot.start }}</td>
+                    <td>{{ slot.end }}</td>
+                    <td>{{ slot.room }}</td>
+                    <td>{{ slot.dosen if slot.dosen else "-" }}</td>
+                    <td>
+                    {% if not slot.dosen %}
+                        {# If the dosen has exactly one booked-but-unassigned course, pass it to select_slot so the slot is bound immediately. #}
+                        {% if unassigned_booked is defined and unassigned_booked|length == 1 %}
+                            <a class="btn btn-primary" href="{{ url_for('select_slot', slot_id=slot._id, course_id=unassigned_booked[0]._id) }}">Ambil Slot</a>
+                        {% else %}
+                            {# If there are zero or multiple unassigned booked courses, send the dosen to choose a course first. #}
+                            <a class="btn btn-primary" href="{{ url_for('dosen_select_course') }}">Ambil Slot</a>
+                        {% endif %}
+                    {% else %}
+                        <span style="color:var(--muted);">Sudah Diambil</span>
+                    {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

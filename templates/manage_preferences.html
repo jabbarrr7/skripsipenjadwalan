@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Lecturer Preferences</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 30px;
+        }
+        h1 { color: #333; margin-bottom: 10px; }
+        .subtitle { color: #666; margin-bottom: 30px; font-size: 14px; }
+        .flash-messages {
+            margin-bottom: 20px;
+        }
+        .flash {
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .flash.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .flash.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        
+        .add-form {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            border: 2px dashed #ccc;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        select, input, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+        
+        .time-ranges {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        .time-range-item {
+            display: grid;
+            grid-template-columns: 150px 100px 100px 50px;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn-add {
+            background: #28a745;
+            color: white;
+            font-size: 12px;
+            padding: 8px 15px;
+        }
+        .btn-remove {
+            background: #dc3545;
+            color: white;
+            font-size: 12px;
+            padding: 8px 12px;
+        }
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+            padding: 5px 12px;
+            font-size: 12px;
+        }
+        
+        .preferences-list {
+            margin-top: 30px;
+        }
+        .preference-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+        .preference-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .lecturer-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+        }
+        .preference-desc {
+            color: #666;
+            font-style: italic;
+            margin-bottom: 10px;
+        }
+        .time-ranges-display {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .time-range-row {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        .time-range-row:last-child {
+            border-bottom: none;
+        }
+        .day-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="{{ url_for('koordinator_dashboard') }}" class="back-link">← Back to Dashboard</a>
+        
+        <h1>🎯 Manage Lecturer Preferences</h1>
+        <p class="subtitle">Set unavailable time ranges for lecturers. Scheduler will respect these preferences.</p>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        <!-- Add/Edit Preference Form -->
+        <div class="add-form">
+            <h2 style="margin-bottom: 20px;">➕ Add/Update Preference</h2>
+            <form method="POST" action="{{ url_for('add_preference_route') }}" id="preferenceForm">
+                <div class="form-group">
+                    <label>Lecturer Name *</label>
+                    <select name="lecturer_name" required>
+                        <option value="">-- Select Lecturer --</option>
+                        {% for lecturer in all_lecturers %}
+                            <option value="{{ lecturer }}">{{ lecturer }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Description (optional)</label>
+                    <textarea name="description" placeholder="e.g., Tidak tersedia jam pagi..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Unavailable Time Ranges *</label>
+                    <div class="time-ranges" id="timeRanges">
+                        <div class="time-range-item">
+                            <select name="days[]" required>
+                                <option value="">-- Day --</option>
+                                <option value="Senin">Senin</option>
+                                <option value="Selasa">Selasa</option>
+                                <option value="Rabu">Rabu</option>
+                                <option value="Kamis">Kamis</option>
+                                <option value="Jumat">Jumat</option>
+                            </select>
+                            <input type="time" name="starts[]" required placeholder="Start">
+                            <input type="time" name="ends[]" required placeholder="End">
+                            <button type="button" class="btn btn-remove" onclick="removeTimeRange(this)">✕</button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-add" onclick="addTimeRange()">+ Add Time Range</button>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">💾 Save Preference</button>
+            </form>
+        </div>
+        
+        <!-- Existing Preferences List -->
+        <div class="preferences-list">
+            <h2 style="margin-bottom: 20px;">📋 Current Preferences ({{ preferences|length }})</h2>
+            
+            {% if preferences|length == 0 %}
+                <p style="color: #666; font-style: italic;">No preferences set yet. Add one above!</p>
+            {% else %}
+                {% for pref in preferences %}
+                    <div class="preference-card">
+                        <div class="preference-header">
+                            <span class="lecturer-name">{{ pref.lecturer_name }}</span>
+                            <form method="POST" action="{{ url_for('delete_preference_route', lecturer_name=pref.lecturer_name) }}" style="display: inline;">
+                                <button type="submit" class="btn btn-delete" onclick="return confirm('Delete this preference?')">🗑️ Delete</button>
+                            </form>
+                        </div>
+                        
+                        {% if pref.description %}
+                            <p class="preference-desc">{{ pref.description }}</p>
+                        {% endif %}
+                        
+                        <div class="time-ranges-display">
+                            <strong>Unavailable Times ({{ pref.unavailable_time_ranges|length }} ranges):</strong>
+                            {% for range in pref.unavailable_time_ranges %}
+                                <div class="time-range-row">
+                                    <span class="day-badge">{{ range.day }}</span>
+                                    <span>{{ range.start }} - {{ range.end }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+    
+    <script>
+        function addTimeRange() {
+            const container = document.getElementById('timeRanges');
+            const newItem = document.createElement('div');
+            newItem.className = 'time-range-item';
+            newItem.innerHTML = `
+                <select name="days[]" required>
+                    <option value="">-- Day --</option>
+                    <option value="Senin">Senin</option>
+                    <option value="Selasa">Selasa</option>
+                    <option value="Rabu">Rabu</option>
+                    <option value="Kamis">Kamis</option>
+                    <option value="Jumat">Jumat</option>
+                </select>
+                <input type="time" name="starts[]" required placeholder="Start">
+                <input type="time" name="ends[]" required placeholder="End">
+                <button type="button" class="btn btn-remove" onclick="removeTimeRange(this)">✕</button>
+            `;
+            container.appendChild(newItem);
+        }
+        
+        function removeTimeRange(btn) {
+            const item = btn.parentElement;
+            const container = item.parentElement;
+            if (container.children.length > 1) {
+                item.remove();
+            } else {
+                alert('At least one time range is required!');
+            }
+        }
+    </script>
+</body>
+</html>

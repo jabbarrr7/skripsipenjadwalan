@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Permintaan Reschedule - Koordinator (Grouped)</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .group-card {background:#fff; border:1px solid #ddd; border-radius:8px; padding:18px; margin-bottom:20px;}
+        .inner-card {background:#fafafa; border:1px solid #e0e0e0; border-radius:6px; padding:14px; margin:12px 0;}
+        .inner-card.pending {border-left:4px solid #ff9800;}
+        .inner-card.approved {border-left:4px solid #4caf50;}
+        .status-badge {display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:bold;}
+        .status-pending {background:#fff3e0; color:#f57c00;}
+        .status-approved {background:#e8f5e9; color:#2e7d32;}
+        .affected-class {background:#fff; border:1px solid #eee; padding:6px 10px; margin:4px 0; border-radius:4px; font-size:13px;}
+        .result-summary {background:#e3f2fd; padding:10px; border-radius:4px; margin-top:8px; font-size:13px;}
+        .btn-approve {background:#4caf50; color:#fff; padding:6px 14px; border:none; border-radius:4px; cursor:pointer; font-size:13px;}
+        .btn-approve.retry {background:#ff5722;}
+        .header-flex {display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;}
+        .toggle-btn {background:#1976d2; color:#fff; padding:3px 10px; border:none; border-radius:4px; cursor:pointer; font-size:12px;}
+        .empty-note {color:#999; font-style:italic; font-size:13px;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-flex" style="margin-bottom:20px;">
+            <h1 style="margin:0;">📋 Permintaan Reschedule Dosen (Grouped)</h1>
+            <div style="display:flex; gap:8px;">
+                <a href="{{ url_for('koordinator') }}" class="btn">← Dashboard</a>
+                <a href="{{ url_for('koordinator_unavailability_history') }}" class="btn btn-secondary">🕒 History</a>
+            </div>
+        </div>
+
+        {% if lecturers %}
+            {% for lect in lecturers %}
+            <div class="group-card">
+                <div class="header-flex">
+                    <div>
+                        <strong style="font-size:18px;">👤 {{ lect }}</strong>
+                        <span style="background:#1976d2; color:#fff; padding:2px 10px; border-radius:12px; font-size:11px; margin-left:6px;">{{ grouped[lect]|length }} permintaan</span>
+                    </div>
+                    <button class="toggle-btn" onclick="toggleGroup('{{ loop.index }}')" id="tg-{{ loop.index }}">Sembunyikan</button>
+                </div>
+                <div id="grp-{{ loop.index }}">
+                {% for report in grouped[lect] %}
+                    <div class="inner-card {{ report.status }}">
+                        <div class="header-flex" style="margin-bottom:6px;">
+                            <div>
+                                <span class="status-badge status-{{ report.status }}">{{ report.status.upper() }}</span>
+                                <small style="color:#555;">
+                                    {% if report.created_at %}
+                                        {% if report.created_at.strftime %}
+                                            {{ report.created_at.strftime('%d %b %Y %H:%M') }}
+                                        {% else %}
+                                            {{ report.created_at }}
+                                        {% endif %}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <div style="display:flex; gap:6px;">
+                                {% if report.status == 'pending' %}
+                                <button class="btn-approve" onclick="rescheduleNow('{{ report._id }}')">✓ Approve</button>
+                                {% endif %}
+                                {% if report.status == 'approved' and report.reschedule_result and report.reschedule_result.failed > 0 %}
+                                <button class="btn-approve retry" onclick="retryReschedule('{{ report._id }}')" title="Coba lagi">🔁 Retry ({{ report.reschedule_result.failed }})</button>
+                                {% endif %}
+                                <button style="background:#f44336; color:#fff; padding:6px 10px; border:none; border-radius:4px; cursor:pointer; font-size:12px;" onclick="deleteRequest('{{ report._id }}')" title="Hapus request">🗑</button>
+                            </div>
+                        </div>
+                        <div style="font-size:13px;">
+                            <strong>Request:</strong>
+                            {% if report.entries %}
+                                <!-- New multi-entry format -->
+                                {% for entry in report.entries %}
+                                <div style="margin:6px 0; padding:6px; background:#fff; border-radius:4px; border:1px solid #e0e0e0;">
+                                    <strong>{{ loop.index }}.</strong> 
+                                    {% if entry.day == '*' %}
+                                        <strong style="color:#f44336;">Semua Hari (Senin-Jumat)</strong>
+                                    {% else %}
+                                        {{ entry.day }}
+                                    {% endif %}
+                                    {% if entry.time_type == 'specific' and entry.specific_time %}
+                                        • Jam {{ entry.specific_time }}
+                                    {% elif entry.time_type == 'range' and entry.start_time and entry.end_time %}
+                                        • {{ entry.start_time }}–{{ entry.end_time }}
+                                    {% else %}
+                                        • Sepanjang Hari
+                                    {% endif %}
+                                    {% if entry.reason %}<br><small style="color:#666;">Alasan: {{ entry.reason }}</small>{% endif %}
+                                    
+                                    <div style="margin-left:20px; margin-top:4px;">
+                                        <strong style="font-size:12px;">Kelas terdampak ({{ entry.affected_classes|length }}):</strong>
+                                        {% if entry.affected_classes %}
+                                            {% for cls in entry.affected_classes %}
+                                            <div class="affected-class">📚 {{ cls.course_name }}{% if cls.section_label %} ({{ cls.section_label }}){% endif %} — {{ cls.start }}-{{ cls.end }} di {{ cls.room }}</div>
+                                            {% endfor %}
+                                        {% else %}
+                                            <div class="empty-note">Tidak ada kelas pada waktu ini.</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <!-- Old single-entry format (backward compatibility) -->
+                                <strong>Blok Hari:</strong>
+                                {% if report.unavailable_days %}{{ report.unavailable_days|join(', ') }}{% else %}{{ report.unavailable_day }}{% endif %}
+                                {% if report.unavailable_time_type == 'specific' and report.specific_time %}
+                                    • Jam {{ report.specific_time }}
+                                {% elif report.unavailable_time_type == 'range' and report.start_time and report.end_time %}
+                                    • {{ report.start_time }}–{{ report.end_time }}
+                                {% endif %}
+                                {% if report.reason %}<div style="font-size:12px; color:#555;">Alasan: {{ report.reason }}</div>{% endif %}
+                                <div style="margin-top:6px;">
+                                    <strong style="font-size:13px;">Kelas terdampak ({{ report.affected_classes|length }}):</strong>
+                                    {% if report.affected_classes %}
+                                        {% for cls in report.affected_classes %}
+                                        <div class="affected-class">📚 {{ cls.course_name }}{% if cls.section_label %} ({{ cls.section_label }}){% endif %} — {{ cls.start }}-{{ cls.end }} di {{ cls.room }}</div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="empty-note">Tidak ada kelas.</div>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        {% if report.status == 'approved' and report.reschedule_result %}
+                        <div class="result-summary">
+                            ✅ Dipindah: {{ report.reschedule_result.moved }} | ❌ Gagal: {{ report.reschedule_result.failed }}
+                            {% if report.reschedule_result.failed > 0 %}
+                            <div style="font-size:12px; color:#555;">Gagal: {{ report.reschedule_result.failed_courses|join(', ') }}</div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p style="color:#999; text-align:center;">Belum ada permintaan reschedule.</p>
+        {% endif %}
+    </div>
+
+    <script>
+        function toggleGroup(idx){
+            const el = document.getElementById('grp-'+idx);
+            const btn = document.getElementById('tg-'+idx);
+            if(!el) return;
+            if(el.style.display==='none'){el.style.display='block'; btn.textContent='Sembunyikan';}
+            else {el.style.display='none'; btn.textContent='Tampilkan';}
+        }
+        async function rescheduleNow(reportId){
+            if(!confirm('Approve dan jalankan auto-reschedule?')) return;
+            const res = await fetch(`/koordinator/reschedule_lecturer/${reportId}`, {method:'POST', headers:{'Content-Type':'application/json'}});
+            const data = await res.json();
+            if(data.success){
+                let msg = `✅ Berhasil!\nDipindah: ${data.result.moved}\nGagal: ${data.result.failed}`;
+                
+                // Show debug info if available
+                if(data.result.debug_info && data.result.debug_info.length > 0) {
+                    msg += '\n\n📊 Detail:';
+                    data.result.debug_info.slice(0, 10).forEach(line => {
+                        msg += '\n' + line;
+                    });
+                    if(data.result.debug_info.length > 10) {
+                        msg += `\n... dan ${data.result.debug_info.length - 10} lainnya (cek console log)`;
+                    }
+                    console.log('Full debug info:', data.result.debug_info);
+                }
+                
+                alert(msg);
+                location.reload();
+            } else alert('❌ Error: '+data.message);
+        }
+        async function retryReschedule(reportId){
+            if(!confirm('Coba lagi pemindahan otomatis untuk kelas gagal?')) return;
+            const res = await fetch(`/koordinator/retry_reschedule/${reportId}`, {method:'POST'});
+            const data = await res.json();
+            if(data.success){
+                let msg = `🔁 Retry selesai\nDipindah tambahan: ${data.result.moved}\nMasih gagal: ${data.result.failed}`;
+                
+                // Show debug info if available
+                if(data.result.debug_info && data.result.debug_info.length > 0) {
+                    msg += '\n\n📊 Detail:';
+                    data.result.debug_info.slice(0, 10).forEach(line => {
+                        msg += '\n' + line;
+                    });
+                    if(data.result.debug_info.length > 10) {
+                        msg += `\n... dan ${data.result.debug_info.length - 10} lainnya (cek console log)`;
+                    }
+                    console.log('Full debug info:', data.result.debug_info);
+                }
+                
+                alert(msg);
+                location.reload();
+            } else alert('❌ Error: '+data.message);
+        }
+        async function deleteRequest(reportId){
+            if(!confirm('Yakin ingin menghapus permintaan reschedule ini?')) return;
+            try {
+                const res = await fetch(`/koordinator/delete_reschedule_request/${reportId}`, {method:'POST'});
+                const data = await res.json();
+                if(data.success){
+                    alert('✅ '+data.message);
+                    location.reload();
+                } else {
+                    alert('❌ '+data.message);
+                }
+            } catch(e) {
+                alert('❌ Error: '+e.message);
+            }
+        }
+    </script>
+</body>
+</html>

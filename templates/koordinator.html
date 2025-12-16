@@ -1,0 +1,598 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <h2 class="page-title">📊 Dashboard Koordinator</h2>
+        <div class="text-muted text-sm">Statistik dosen dan distribusi jadwal</div>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-primary" href="/coordinator/schedule_analytics">📈 Analitik Lengkap</a>
+        <a class="btn btn-success" href="/export_schedule_with_probability">📥 Export</a>
+    </div>
+</div>
+
+<!-- Summary Statistics -->
+<div class="analytics-grid">
+    <div class="stat">
+        <div class="label">Total Dosen</div>
+        <div class="value">{{ dosen_count }}</div>
+    </div>
+    
+    <div class="stat">
+        <div class="label">Dosen Aktif Mengajar</div>
+        <div class="value">{{ active_dosen_count }}</div>
+    </div>
+    
+    <div class="stat">
+        <div class="label">Total Jadwal</div>
+        <div class="value">{{ schedule|length }}</div>
+    </div>
+    
+    <div class="stat">
+        <div class="label">Kelas Online</div>
+        <div class="value">{{ online_count }}</div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="card">
+    <h3>⚡ Aksi Cepat</h3>
+    <div style="display:flex; flex-wrap:wrap; gap:12px; margin-top:16px; align-items:center;">
+        <form id="gaForm" action="/generate_sections_ga" method="post" style="display:inline-flex; gap:8px; align-items:center; border:1px solid #e6e9ef; padding:8px 12px; border-radius:8px; background:#f8fafc;" onsubmit="submitGAForm(event)">
+            <strong style="font-size:13px;">Generate Sections (GA):</strong>
+            <label style="font-size:12px; font-weight:500;">Pop</label>
+            <input type="number" name="population" value="200" min="50" max="1000" style="width:70px; padding:6px 8px; border:1px solid #e6e9ef; border-radius:6px; font-size:13px;">
+            <label style="font-size:12px; font-weight:500;">Gen</label>
+            <input type="number" name="generations" value="300" min="50" max="2000" style="width:70px; padding:6px 8px; border:1px solid #e6e9ef; border-radius:6px; font-size:13px;">
+            <button type="submit" class="btn btn-sm btn-secondary">▶️ Run GA</button>
+        </form>
+        <form id="ortoolsForm" action="/schedule_sections_ortools" method="post" style="display:inline;">
+            <button type="button" class="btn btn-primary" onclick="submitOrtoolsForm(this)">🔄 Generate Jadwal (OR-Tools)</button>
+        </form>
+        <button type="button" class="btn btn-success" onclick="document.getElementById('addSectionModal').style.display='block'">➕ Tambah Section</button>
+        <button type="button" class="btn btn-danger" onclick="document.getElementById('deleteSectionModal').style.display='block'">🗑️ Hapus Section</button>
+        <a href="/koordinator_schedule" class="btn btn-ghost">📅 Lihat Jadwal Lengkap</a>
+        <a href="/koordinator/unavailability_requests" class="btn btn-warning">
+            📋 Reschedule Requests
+            {% if pending_reschedule_count and pending_reschedule_count > 0 %}
+                <span style="background:#d32f2f; color:#fff; padding:2px 8px; border-radius:12px; font-size:12px; margin-left:6px;">{{ pending_reschedule_count }}</span>
+            {% endif %}
+        </a>
+    </div>
+</div>
+
+<!-- Lecturer Teaching Load Distribution -->
+<div class="analytics-card">
+    <h4>📊 Distribusi Beban Mengajar Dosen</h4>
+    <p class="text-muted text-sm" style="margin-bottom:20px;">Urutan berdasarkan total SKS tertinggi</p>
+    <div style="margin-top:20px;">
+        {% set max_sks = active_lecturers|map(attribute='total_sks')|max if active_lecturers else 1 %}
+        <div style="display:grid; gap:12px;">
+            {% for lecturer in active_lecturers|sort(attribute='total_sks', reverse=True) %}
+            <div style="display:grid; grid-template-columns: 200px 1fr 100px 80px; gap:12px; align-items:center;">
+                <div class="bar-label" style="font-size:13px; font-weight:600; color:#374151; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="{{ lecturer.name }}">
+                    {{ lecturer.name }}
+                </div>
+                <div class="bar-container">
+                    {% set width = (lecturer.total_sks / max_sks * 100)|int %}
+                    {% if width < 5 %}{% set width = 5 %}{% endif %}
+                    {% if lecturer.total_sks >= 12 %}
+                        <div class="bar-fill excellent" style="width: {{ width }}%;">
+                            {{ lecturer.total_sks }} SKS
+                        </div>
+                    {% elif lecturer.total_sks >= 8 %}
+                        <div class="bar-fill good" style="width: {{ width }}%;">
+                            {{ lecturer.total_sks }} SKS
+                        </div>
+                    {% elif lecturer.total_sks >= 4 %}
+                        <div class="bar-fill acceptable" style="width: {{ width }}%;">
+                            {{ lecturer.total_sks }} SKS
+                        </div>
+                    {% else %}
+                        <div class="bar-fill poor" style="width: {{ width }}%;">
+                            {{ lecturer.total_sks }} SKS
+                        </div>
+                    {% endif %}
+                </div>
+                <div style="text-align:right; font-size:13px; font-weight:600; color:#475569;">
+                    {{ lecturer.num_sections }} kelas
+                </div>
+                <div style="text-align:center;">
+                    {% if lecturer.total_sks >= 12 %}
+                        <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:linear-gradient(135deg,#10b981,#059669);"></span>
+                    {% elif lecturer.total_sks >= 8 %}
+                        <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:linear-gradient(135deg,#3b82f6,#2563eb);"></span>
+                    {% elif lecturer.total_sks >= 4 %}
+                        <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:linear-gradient(135deg,#f59e0b,#d97706);"></span>
+                    {% else %}
+                        <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:linear-gradient(135deg,#ef4444,#dc2626);"></span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Legend -->
+    <div style="margin-top:24px; padding-top:16px; border-top:1px solid #e6e9ef; display:flex; gap:20px; justify-content:center; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:6px; font-size:12px;">
+            <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:linear-gradient(135deg,#10b981,#059669);"></span>
+            <span style="color:#475569; font-weight:500;">Penuh (≥12 SKS)</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px; font-size:12px;">
+            <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:linear-gradient(135deg,#3b82f6,#2563eb);"></span>
+            <span style="color:#475569; font-weight:500;">Normal (8-11 SKS)</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px; font-size:12px;">
+            <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:linear-gradient(135deg,#f59e0b,#d97706);"></span>
+            <span style="color:#475569; font-weight:500;">Ringan (4-7 SKS)</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px; font-size:12px;">
+            <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:linear-gradient(135deg,#ef4444,#dc2626);"></span>
+            <span style="color:#475569; font-weight:500;">Sangat Ringan (<4 SKS)</span>
+        </div>
+    </div>
+</div>
+
+<!-- Lecturer Details Table -->
+<div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <div>
+            <h3 style="margin:0;">👨‍🏫 Daftar Dosen dengan Jadwal</h3>
+            <p class="text-muted text-sm" style="margin:4px 0 0 0;">
+                Ringkasan beban mengajar setiap dosen
+            </p>
+        </div>
+        <input type="text" id="searchLecturer" placeholder="🔍 Cari dosen..." style="width:300px; padding:10px 14px; border:1px solid #e6e9ef; border-radius:8px; font-size:14px;" onkeyup="searchTable()">
+    </div>
+    
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>No</th>
+                    <th>Nama Dosen</th>
+                    <th class="text-center">Total SKS</th>
+                    <th class="text-center">Jumlah Kelas</th>
+                    <th class="text-center">Mata Kuliah</th>
+                    <th>Hari Mengajar</th>
+                    <th>Status</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lecturer in active_lecturers|sort(attribute='name') %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td style="font-weight:600;">{{ lecturer.name }}</td>
+                    <td class="text-center">
+                        <span class="score-badge">{{ lecturer.total_sks }} SKS</span>
+                    </td>
+                    <td class="text-center">{{ lecturer.num_sections }}</td>
+                    <td class="text-center">{{ lecturer.num_courses }}</td>
+                    <td>
+                        {% for day in lecturer.days %}
+                            <span style="display:inline-block; background:#e0e7ff; color:#4338ca; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">{{ day }}</span>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {% if lecturer.total_sks >= 12 %}
+                            <span class="badge badge-excellent">Penuh</span>
+                        {% elif lecturer.total_sks >= 8 %}
+                            <span class="badge badge-good">Normal</span>
+                        {% elif lecturer.total_sks >= 4 %}
+                            <span class="badge badge-acceptable">Ringan</span>
+                        {% else %}
+                            <span class="badge badge-poor">Sangat Ringan</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="/koordinator/dosen/{{ lecturer.name }}" class="btn btn-sm btn-ghost">👁️ Lihat Jadwal</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal for Adding Section -->
+<div id="addSectionModal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background:rgba(15,23,42,0.7); backdrop-filter:blur(4px);">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>➕ Tambah Section Manual</h3>
+            <button onclick="document.getElementById('addSectionModal').style.display='none'" class="modal-close">&times;</button>
+        </div>
+        
+        <div class="info-box info-box-primary">
+            <strong>ℹ️ Cara Kerja:</strong> Pilih mata kuliah, dosen, dan jumlah section. 
+            Sistem akan <strong>otomatis menjadwalkan</strong> waktu dan ruangan yang tersedia.
+        </div>
+        
+        <form id="addSectionForm" action="/add_section_manual" method="post" onsubmit="submitAddSectionForm(event)">
+            <div style="margin-bottom:15px;">
+                <label style="display:block; margin-bottom:5px; font-weight:600;">📚 Mata Kuliah:</label>
+                <select name="course_id" id="courseSelect" required onchange="updateCourseInfo()" style="width:100%; padding:10px 14px; border:1px solid #e6e9ef; border-radius:8px;">
+                    <option value="">-- Pilih Mata Kuliah --</option>
+                    {% for course in selected_courses %}
+                    <option value="{{ course._id }}" data-name="{{ course.course_name }}" data-sks="{{ course.sks }}" data-lecturers="{{ course.lecturer_list|join('|||') }}">
+                        {{ course.course_name }} ({{ course.sks }} SKS)
+                    </option>
+                    {% endfor %}
+                </select>
+                <input type="hidden" name="course_name" id="courseName">
+                <input type="hidden" name="sks" id="courseSks">
+            </div>
+            
+            <div style="margin-bottom:15px;">
+                <label style="display:block; margin-bottom:5px; font-weight:600;">👨‍🏫 Dosen:</label>
+                <select name="lecturer" id="lecturerSelect" required style="width:100%; padding:10px 14px; border:1px solid #e6e9ef; border-radius:8px;">
+                    <option value="">-- Pilih Dosen --</option>
+                </select>
+                <small class="text-muted text-sm">Pilih mata kuliah terlebih dahulu untuk melihat dosen yang mengajar</small>
+            </div>
+            
+            <div style="margin-bottom:15px;">
+                <label style="display:block; margin-bottom:5px; font-weight:600;">🔢 Jumlah Section:</label>
+                <input type="number" name="num_sections" id="numSections" min="1" max="10" value="1" required style="width:100%; padding:10px 14px; border:1px solid #e6e9ef; border-radius:8px;">
+                <small class="text-muted text-sm">Masukkan berapa banyak section yang ingin ditambahkan (1-10)</small>
+            </div>
+            
+            <div class="info-box info-box-warning">
+                <strong>⚠️ Perhatian:</strong> Sistem akan mencari slot waktu dan ruangan yang tersedia secara otomatis. 
+                Jika tidak ada slot yang tersedia, section tidak akan dijadwalkan.
+            </div>
+            
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
+                <button type="button" onclick="document.getElementById('addSectionModal').style.display='none'" class="btn btn-secondary">❌ Batal</button>
+                <button type="submit" class="btn btn-success">✓ Tambah & Jadwalkan Otomatis</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function updateCourseInfo() {
+    const select = document.getElementById('courseSelect');
+    const option = select.options[select.selectedIndex];
+    
+    if (option.value) {
+        document.getElementById('courseName').value = option.dataset.name;
+        document.getElementById('courseSks').value = option.dataset.sks;
+        
+        // Update lecturer options
+        const lecturersStr = option.dataset.lecturers || '';
+        const lecturers = lecturersStr.split('|||').filter(l => l.trim());
+        const lecturerSelect = document.getElementById('lecturerSelect');
+        lecturerSelect.innerHTML = '<option value="">-- Pilih Dosen --</option>';
+        
+        if (lecturers.length === 0) {
+            lecturerSelect.innerHTML += '<option value="" disabled>Tidak ada dosen untuk mata kuliah ini</option>';
+        }
+        
+        lecturers.forEach(lec => {
+            if (lec.trim()) {
+                const opt = document.createElement('option');
+                opt.value = lec.trim();
+                opt.textContent = lec.trim();
+                lecturerSelect.appendChild(opt);
+            }
+        });
+    }
+}
+
+function submitGAForm(event) {
+    event.preventDefault();
+    
+    // Prevent multiple submissions
+    const form = event.target;
+    if (form.dataset.submitting === 'true') {
+        console.warn('GA form is already being submitted, ignoring duplicate submission');
+        return;
+    }
+    
+    // Mark as submitting
+    form.dataset.submitting = 'true';
+    
+    Swal.fire({
+        title: '⏳ Menjalankan Genetic Algorithm',
+        html: '<p style="font-size:14px;">Sedang mengoptimalkan jadwal dengan GA...</p>',
+        icon: 'info',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: (modal) => {
+            Swal.showLoading();
+            setTimeout(() => {
+                form.submit();
+            }, 300);
+        }
+    });
+}
+
+function submitOrtoolsForm(button) {
+    // Prevent multiple submissions
+    if (button.dataset.submitting === 'true') {
+        console.warn('Form is already being submitted, ignoring duplicate submission attempt');
+        return;
+    }
+    
+    // Mark as submitting and disable button
+    button.dataset.submitting = 'true';
+    button.disabled = true;
+    button.style.opacity = '0.5';
+    button.style.cursor = 'not-allowed';
+    
+    Swal.fire({
+        title: '⏳ Menjadwalkan Dengan OR-Tools',
+        html: '<p style="font-size:14px;">Sedang mengoptimalkan dan menjadwalkan semua section...</p>',
+        icon: 'info',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: (modal) => {
+            Swal.showLoading();
+            // Submit the form after a brief delay to ensure UI renders
+            setTimeout(() => {
+                const form = document.getElementById('ortoolsForm');
+                form.submit();
+            }, 100);
+        }
+    });
+}
+
+async function submitAddSectionForm(event) {
+    event.preventDefault();
+    
+    const form = document.getElementById('addSectionForm');
+    const formData = new FormData(form);
+    
+    // Show loading sweet alert
+    const loadingSwal = Swal.fire({
+        title: '⏳ Menjadwalkan Section...',
+        html: '<p style="font-size:14px;">Sistem sedang mencari slot waktu dan ruangan yang tersedia...</p>',
+        icon: 'info',
+        allowOutsideClick: false,
+        didOpen: (modal) => {
+            Swal.showLoading();
+        }
+    });
+    
+    try {
+        // Send form data to backend
+        const response = await fetch('/add_section_manual', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Check if swap happened
+            if (data.swap_info && data.swap_info.happened) {
+                // Swap case
+                const swapMsg = `
+                    <div style="text-align:left; font-size:14px; line-height:1.6;">
+                        <p><strong>✓ Berhasil! Swap Section</strong></p>
+                        <hr style="border:none; border-top:1px solid #e5e7eb; margin:10px 0;">
+                        <p>
+                            <strong>${data.swap_info.new_course}</strong> (Dosen: ${data.swap_info.new_lecturer})<br/>
+                            Dijadwalkan: <strong>${data.schedule_info.day}</strong> <strong>${data.schedule_info.start}-${data.schedule_info.end}</strong><br/>
+                            Ruangan: <strong>${data.schedule_info.room}</strong>
+                        </p>
+                        <p style="margin-top:12px; padding-top:12px; border-top:1px solid #e5e7eb; color:#666;">
+                            <strong>↔ Swap dengan:</strong><br/>
+                            ${data.swap_info.existing_course} (Dosen: ${data.swap_info.existing_lecturer})<br/>
+                            Dipindahkan ke: ${data.swap_info.existing_new_day} ${data.swap_info.existing_new_start}-${data.swap_info.existing_new_end}
+                        </p>
+                    </div>
+                `;
+                
+                Swal.fire({
+                    title: '🔄 Swap Berhasil!',
+                    html: swapMsg,
+                    icon: 'success',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#22c55e'
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                // Normal schedule case
+                const scheduleMsg = `
+                    <div style="text-align:left; font-size:14px; line-height:1.6;">
+                        <p><strong>✓ Berhasil Dijadwalkan</strong></p>
+                        <hr style="border:none; border-top:1px solid #e5e7eb; margin:10px 0;">
+                        <p>
+                            <strong>${data.schedule_info.day}</strong><br/>
+                            <strong>${data.schedule_info.start} - ${data.schedule_info.end}</strong><br/>
+                            Ruangan: <strong>${data.schedule_info.room}</strong>
+                        </p>
+                    </div>
+                `;
+                
+                Swal.fire({
+                    title: '✓ Berhasil!',
+                    html: scheduleMsg,
+                    icon: 'success',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#22c55e'
+                }).then(() => {
+                    location.reload();
+                });
+            }
+        } else {
+            // Error case
+            Swal.fire({
+                title: '❌ Gagal Menjadwalkan',
+                html: `
+                    <div style="text-align:left; font-size:14px;">
+                        <p><strong>${data.message}</strong></p>
+                        ${data.details ? `<p style="color:#666; margin-top:10px;">${data.details}</p>` : ''}
+                    </div>
+                `,
+                icon: 'error',
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#ef4444'
+            });
+        }
+    } catch (error) {
+        Swal.fire({
+            title: '❌ Terjadi Kesalahan',
+            text: error.message || 'Gagal berkomunikasi dengan server',
+            icon: 'error',
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#ef4444'
+        });
+    }
+}
+</script>
+
+<!-- Modal for Deleting Section -->
+<div id="deleteSectionModal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background:rgba(15,23,42,0.7); backdrop-filter:blur(4px);">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>🗑️ Hapus Section</h3>
+            <button onclick="document.getElementById('deleteSectionModal').style.display='none'" class="modal-close">&times;</button>
+        </div>
+        
+        <div class="info-box info-box-warning">
+            <strong>⚠️ Perhatian:</strong> Pilih mata kuliah untuk melihat semua section yang ada, kemudian pilih section yang ingin dihapus.
+        </div>
+        
+        <div style="margin-bottom:15px;">
+            <label style="display:block; margin-bottom:5px; font-weight:600;">📚 Mata Kuliah:</label>
+            <select id="deleteCourseSelect" onchange="loadCourseSections()" style="width:100%; padding:10px 14px; border:1px solid #e6e9ef; border-radius:8px;">
+                <option value="">-- Pilih Mata Kuliah --</option>
+                {% for course in selected_courses %}
+                <option value="{{ course._id }}">{{ course.course_name }} ({{ course.sks }} SKS)</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div id="sectionsListContainer" style="display:none;">
+            <label style="display:block; margin-bottom:10px; font-weight:600;">📋 Pilih Section yang Akan Dihapus:</label>
+            <div id="sectionsList" style="max-height:400px; overflow-y:auto; border:1px solid #e6e9ef; border-radius:8px; padding:10px;">
+                <!-- Section list will be loaded here via AJAX -->
+            </div>
+        </div>
+        
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
+            <button type="button" onclick="document.getElementById('deleteSectionModal').style.display='none'" class="btn btn-secondary">❌ Batal</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function loadCourseSections() {
+    const courseId = document.getElementById('deleteCourseSelect').value;
+    const container = document.getElementById('sectionsListContainer');
+    const listDiv = document.getElementById('sectionsList');
+    
+    if (!courseId) {
+        container.style.display = 'none';
+        return;
+    }
+    
+    // Show loading
+    listDiv.innerHTML = '<div style="text-align:center; padding:20px;"><div class="spinner"></div></div>';
+    container.style.display = 'block';
+    
+    // Fetch sections for this course
+    fetch(`/api/get_course_sections/${courseId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.sections.length > 0) {
+                let html = '<div style="display:flex; flex-direction:column; gap:10px;">';
+                
+                data.sections.forEach(section => {
+                    const scheduleInfo = section.schedule 
+                        ? `${section.schedule.day} | ${section.schedule.start}-${section.schedule.end} | ${section.schedule.room}`
+                        : '<span style="color:#94a3b8;">Belum dijadwalkan</span>';
+                    
+                    html += `
+                        <div style="border:1px solid #e6e9ef; border-radius:8px; padding:16px; background:#f8fafc; transition:var(--transition);" onmouseover="this.style.boxShadow='var(--shadow-light)'" onmouseout="this.style.boxShadow='none'">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <div style="flex:1;">
+                                    <strong style="font-size:16px; color:#0f1724;">Section ${section.section_label}</strong>
+                                    <div style="margin-top:8px; color:#64748b; font-size:14px;">
+                                        👨‍🏫 Dosen: <strong style="color:#475569;">${section.lecturer}</strong>
+                                    </div>
+                                    <div style="margin-top:4px; color:#64748b; font-size:14px;">
+                                        📅 Jadwal: ${scheduleInfo}
+                                    </div>
+                                </div>
+                                <button 
+                                    onclick="deleteSection('${section._id}', '${section.schedule_id || ''}', '${section.section_label}')" 
+                                    class="btn btn-danger btn-sm"
+                                    style="min-width:90px;">
+                                    🗑️ Hapus
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                listDiv.innerHTML = html;
+            } else {
+                listDiv.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">Tidak ada section</div><div class="empty-state-subtext">Belum ada section untuk mata kuliah ini</div></div>';
+            }
+        })
+        .catch(error => {
+            listDiv.innerHTML = '<div class="info-box info-box-danger">❌ Error loading sections. Silakan coba lagi.</div>';
+            console.error('Error:', error);
+        });
+}
+
+function deleteSection(sectionId, scheduleId, sectionLabel) {
+    if (!confirm(`Yakin ingin menghapus Section ${sectionLabel}?\n\nSection dan jadwalnya akan dihapus dari database.`)) {
+        return;
+    }
+    
+    fetch('/api/delete_section', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            section_id: sectionId,
+            schedule_id: scheduleId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✓ Section berhasil dihapus!');
+            loadCourseSections(); // Reload the list
+            setTimeout(() => location.reload(), 500); // Refresh page to update stats
+        } else {
+            alert('❌ Gagal menghapus section: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('❌ Error menghapus section');
+        console.error('Error:', error);
+    });
+}
+
+function searchTable() {
+    const input = document.getElementById('searchLecturer');
+    const filter = input.value.toUpperCase();
+    const table = document.querySelector('.card table');
+    const tr = table.getElementsByTagName('tr');
+    
+    for (let i = 1; i < tr.length; i++) {
+        const td = tr[i].getElementsByTagName('td')[1]; // Nama dosen di kolom ke-2
+        if (td) {
+            const txtValue = td.textContent || td.innerText;
+            if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                tr[i].style.display = '';
+            } else {
+                tr[i].style.display = 'none';
+            }
+        }
+    }
+}
+</script>
+
+{% endblock %}

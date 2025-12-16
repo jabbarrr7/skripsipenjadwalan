@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <div style="flex:1;">
+        <h2 class="page-title">Jadwal Lengkap</h2>
+        <div style="color:var(--muted); font-size:13px">Jadwal semua kelas yang sudah dijadwalkan</div>
+    </div>
+    <input type="text" id="searchSchedule" placeholder="🔍 Cari dosen, mata kuliah, ruangan..." style="width:350px; padding:10px 14px; border:1px solid #e6e9ef; border-radius:8px; font-size:14px; margin-right:12px;" onkeyup="searchScheduleTable()">
+    <div class="page-actions">
+        <form action="/koordinator/generate_full_schedule" method="POST" style="display:inline" onsubmit="return confirm('Generate ulang seluruh jadwal? Proses akan menimpa jadwal yang ada.')">
+            <button type="submit" class="btn btn-warning" style="margin-right:8px">⚙️ Generate Jadwal Lengkap</button>
+        </form>
+        <a class="btn btn-ghost" href="/koordinator">Kembali</a>
+    </div>
+</div>
+
+    <div class="card">
+    <div class="table-responsive">
+        {% for day, slots in schedule_by_day %}
+            <h4 style="margin:12px 0">{{ day }}</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>No</th>
+                        <th>Hari</th>
+                        <th>Jam</th>
+                        <th>Ruangan</th>
+                        <th>Mata Kuliah</th>
+                        <th>SKS</th>
+                        <th>Dosen</th>
+                        <th>Kesesuaian</th>
+                        <th>Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for slot in slots %}
+                    {% if slot.dosen %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ slot.day }}</td>
+                        <td>{{ slot.start|replace(':', '.') }} – {{ slot.end|replace(':', '.') }}</td>
+                        <td>{{ slot.room }}</td>
+                        <td>{{ slot.course_name }} {% if slot.section_label %}({{ slot.section_label }}){% elif slot.section_name %}({{ slot.section_name }}){% endif %}</td>
+                        <td>{{ slot.sks }}</td>
+                        <td>{{ slot.dosen }}</td>
+                        <td>
+                            {% set quality = slot.match_quality|default('Acceptable') %}
+                            {% if quality == 'Excellent' %}
+                                <span class="badge badge-excellent">{{ quality }}</span>
+                            {% elif quality == 'Good' %}
+                                <span class="badge badge-good">{{ quality }}</span>
+                            {% elif quality == 'Acceptable' %}
+                                <span class="badge badge-acceptable">{{ quality }}</span>
+                            {% else %}
+                                <span class="badge badge-poor">{{ quality }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center"><span class="score-badge">{{ slot.preference_score|default(50) }}%</span></td>
+                    </tr>
+                    {% endif %}
+                {% endfor %}
+                </tbody>
+            </table>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+function searchScheduleTable() {
+    const input = document.getElementById('searchSchedule');
+    const filter = input.value.toUpperCase();
+    const tables = document.querySelectorAll('.table-responsive table');
+    
+    tables.forEach(table => {
+        const tr = table.getElementsByTagName('tr');
+        for (let i = 1; i < tr.length; i++) {
+            const tds = tr[i].getElementsByTagName('td');
+            let found = false;
+            
+            for (let j = 0; j < tds.length; j++) {
+                const txtValue = tds[j].textContent || tds[j].innerText;
+                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                    found = true;
+                    break;
+                }
+            }
+            
+            tr[i].style.display = found ? '' : 'none';
+        }
+    });
+}
+</script>
+
+{% endblock %}

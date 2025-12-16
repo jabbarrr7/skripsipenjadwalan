@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <h2 class="page-title">Pilih Jadwal</h2>
+        <div style="color:var(--muted); font-size:13px">Pilih slot mengajar yang tersedia</div>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-ghost" href="/dosen">Kembali</a>
+    </div>
+</div>
+
+    <div class="card">
+    <div class="table-responsive">
+        {% if course %}
+            <div style="margin-bottom:12px;">
+                <strong>Course:</strong> {{ course.course_name }} &nbsp; <span style="color:var(--muted);">(Dipilih untuk assignment)</span>
+            </div>
+        {% endif %}
+
+        {% if slots_by_day %}
+            {% for day, slots in slots_by_day %}
+                <h4 style="margin:10px 0">{{ day }}</h4>
+                <table>
+                    <thead>
+                        <tr><th>Hari</th><th>Mulai</th><th>Selesai</th><th>Ruangan</th><th>Aksi</th></tr>
+                    </thead>
+                    <tbody>
+                    {% for s in slots %}
+                    <tr>
+                        <td>{{ s.day }}</td>
+                        <td>{{ s.start }}</td>
+                        <td>{{ s.end }}</td>
+                        <td>{{ s.room }}</td>
+                        <td>
+                            {% if course %}
+                                <a class="btn btn-primary" href="{{ url_for('select_slot', slot_id=s._id, course_id=course._id) }}">Ambil Slot</a>
+                            {% else %}
+                                <a class="btn btn-primary" href="{{ url_for('select_slot', slot_id=s._id) }}">Ambil Slot</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            {% endfor %}
+        {% else %}
+            <div style="color:var(--muted);">Tidak ada slot tersedia saat ini.</div>
+        {% endif %}
+
+    </div>
+</div>
+
+{% endblock %}

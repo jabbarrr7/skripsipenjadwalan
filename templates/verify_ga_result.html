@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>🔍 Verify GA Result</h2>
+    
+    <!-- Statistics -->
+    <div class="alert alert-info">
+        <strong>Statistics:</strong>
+        <ul style="margin: 10px 0 0 0; padding-left: 20px;">
+            <li><strong>Total Sections:</strong> {{ stats.total_sections }}</li>
+            <li><strong>Total Dosen:</strong> {{ stats.total_dosen }}</li>
+            <li><strong>Total Courses:</strong> {{ stats.total_courses }}</li>
+            <li><strong>Violations:</strong> 
+                {% if stats.violations_count == 0 %}
+                    <span class="badge badge-success">0 (✅ ALL COMPLY!)</span>
+                {% else %}
+                    <span class="badge badge-danger">{{ stats.violations_count }}</span>
+                {% endif %}
+            </li>
+        </ul>
+    </div>
+    
+    <!-- Violations Alert -->
+    {% if stats.violations_count > 0 %}
+    <div class="alert alert-danger">
+        <strong>❌ Constraint Violations Detected:</strong>
+        <ul style="margin: 10px 0 0 0; padding-left: 20px;">
+            {% for violation in stats.violations %}
+                <li>{{ violation }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    
+    <!-- Dosen Distribution Table -->
+    <h3 class="mt-4">📊 Dosen SKS Distribution</h3>
+    <table class="table table-striped table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>Dosen</th>
+                <th>SKS</th>
+                <th>Sections</th>
+                <th>Courses</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for dosen in dosen_list %}
+            <tr {% if not dosen.is_valid %}style="background-color: #fee;"{% endif %}>
+                <td>{{ dosen.dosen }}</td>
+                <td><strong>{{ dosen.sks }}</strong></td>
+                <td>{{ dosen.sections }}</td>
+                <td>{{ dosen.courses }}</td>
+                <td>{{ dosen.status }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <!-- Course Section Count Table -->
+    <h3 class="mt-4">📚 Section Count per Course</h3>
+    <table class="table table-striped table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>Course</th>
+                <th>Sections</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for course in course_list %}
+            <tr>
+                <td>{{ course.course }}</td>
+                <td><strong>{{ course.sections }}</strong></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <!-- Action Buttons -->
+    <div class="mt-4">
+        {% if stats.violations_count == 0 %}
+            <a href="{{ url_for('route_schedule_sections_ortools') }}" class="btn btn-success btn-lg">
+                ✅ Proceed to Scheduling (Jadwalkan Section)
+            </a>
+        {% else %}
+            <a href="{{ url_for('route_generate_sections_ga') }}" class="btn btn-warning btn-lg">
+                ⚠️ Re-run GA (Fix Violations)
+            </a>
+        {% endif %}
+        <a href="{{ url_for('koordinator') }}" class="btn btn-secondary btn-lg">
+            Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<style>
+    .table {
+        font-size: 0.95rem;
+    }
+    .table-dark {
+        background-color: #343a40;
+    }
+    .badge-success {
+        background-color: #28a745;
+    }
+    .badge-danger {
+        background-color: #dc3545;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <h2 class="page-title">Mata Kuliah</h2>
+        <div style="color:var(--muted); font-size:13px">Kelola mata kuliah dan unggah daftar</div>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-ghost" href="/koordinator">Kembali</a>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Tambah Mata Kuliah</h3>
+    <form method="POST" action="/add_course" class="form-row" id="addCourseForm">
+        <input type="text" name="course_name" placeholder="Nama Mata Kuliah" required style="flex:1">
+        <input type="number" name="sks" placeholder="SKS" required style="width:120px">
+        <input type="text" name="semester" placeholder="Semester" required style="width:120px">
+        <button class="btn btn-primary" type="submit">Tambah</button>
+    </form>
+
+    <h3 style="margin-top:14px">Upload Mata Kuliah (CSV/XLSX)</h3>
+    <form action="/upload_courses" method="POST" enctype="multipart/form-data" class="form-row" id="uploadCourseForm">
+        <input type="file" name="file" required>
+        <button class="btn btn-primary" type="submit">Upload</button>
+    </form>
+
+    <h3 style="margin-top:18px">Daftar Mata Kuliah</h3>
+    <div class="table-responsive">
+        {% for sem, group in courses_by_semester.items() %}
+            <h4 style="margin:12px 0">Semester {{ sem }}</h4>
+            <table>
+                <thead>
+                    <tr><th>Nama</th><th>SKS</th><th>Semester</th><th>Dipilih Oleh</th><th>Timeslot</th><th>Aksi</th></tr>
+                </thead>
+                <tbody>
+                {% for c in group %}
+                <tr>
+                    <td>{{ c.course_name }}</td>
+                    <td>{{ c.sks }}</td>
+                    <td>{{ c.semester }}</td>
+                    <td>{% if c.selected_by %}{{ c.selected_by }}{% else %}<span style="color:var(--muted);">Belum ada</span>{% endif %}</td>
+                    <td>
+                        {% if c.has_slot %}
+                            {{ c.slot.day }} {{ c.slot.start }}-{{ c.slot.end }} ({{ c.slot.room }})
+                        {% else %}
+                            <span style="color:var(--muted);">Belum ada</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a class="btn btn-ghost" href="{{ url_for('edit_course', course_id=c._id) }}">Edit</a>
+                        <a class="btn btn-danger" href="{{ url_for('delete_course', course_id=c._id) }}">Hapus</a>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% endfor %}
+    </div>
+</div>
+
+{% endblock %}
