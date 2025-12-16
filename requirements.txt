@@ -1,0 +1,7 @@
+flask
+gunicorn
+pandas
+pymongo
+dnspython
+deap
+werkzeug
